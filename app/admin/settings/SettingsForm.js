@@ -1,0 +1,454 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Icon } from '../../../components/Icons';
+import { PageHead, Card } from '../../../components/ui';
+
+const DAYS = [
+  [1, 'Mon'],
+  [2, 'Tue'],
+  [3, 'Wed'],
+  [4, 'Thu'],
+  [5, 'Fri'],
+  [6, 'Sat'],
+  [7, 'Sun'],
+];
+
+function Check({ checked, onChange, title, detail, disabled = false }) {
+  return (
+    <label className="check" style={disabled ? { opacity: 0.5 } : undefined}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span className="box">
+        <Icon.check width={12} height={12} strokeWidth={2.6} />
+      </span>
+      <span className="label">
+        <b>{title}</b>
+        <small>{detail}</small>
+      </span>
+    </label>
+  );
+}
+
+export default function SettingsForm({
+  initial,
+  webhookSet,
+  cronConfigured,
+  steps,
+  tokens,
+  mcpUrl,
+}) {
+  const router = useRouter();
+  const [form, setForm] = useState(initial);
+  const [webhook, setWebhook] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [step, setStep] = useState({ title: '', description: '' });
+  const [tokenName, setTokenName] = useState('');
+  const [freshToken, setFreshToken] = useState('');
+
+  const set = (patch) => setForm((cur) => ({ ...cur, ...patch }));
+
+  function toggleDay(day) {
+    const next = form.workingDays.includes(day)
+      ? form.workingDays.filter((d) => d !== day)
+      : [...form.workingDays, day].sort((a, b) => a - b);
+    set({ workingDays: next });
+  }
+
+  async function post(url, body, message, method = 'POST') {
+    setError('');
+    setNotice('');
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error || 'That did not save.');
+      return null;
+    }
+    if (message) setNotice(message);
+    router.refresh();
+    return data;
+  }
+
+  async function save() {
+    if (form.workingDays.length === 0) {
+      setError('At least one day has to count as working.');
+      return;
+    }
+    setSaving(true);
+    await post(
+      '/api/settings',
+      { ...form, slackWebhookUrl: webhook || undefined },
+      'Settings saved.',
+    );
+    setWebhook('');
+    setSaving(false);
+  }
+
+  return (
+    <>
+      <PageHead title="Settings" subtitle="How the company's rules are enforced, and where the noise goes.">
+        <button className="btn btn-primary" onClick={save} disabled={saving}>
+          <Icon.check width={15} height={15} />
+          {saving ? 'Saving…' : 'Save settings'}
+        </button>
+      </PageHead>
+
+      {error && <p className="error-line">{error}</p>}
+      {notice && <p className="notice-line">{notice}</p>}
+
+      <div className="grid-2">
+        <Card
+          glyph="list"
+          title="Assignment cap"
+          description="The most unfinished tasks one person can be holding before they stop being assignable. Counted per person, not company-wide — twenty tasks across ten people is a normal week, twenty on one person is not."
+        >
+          <label className="field-label">OPEN TASKS EACH</label>
+          <div className="row">
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={200}
+              style={{ width: 160 }}
+              value={form.assignmentCap}
+              onChange={(e) => set({ assignmentCap: Number(e.target.value) })}
+            />
+            <span className="muted" style={{ fontSize: 13.5 }}>
+              Blocked at {form.assignmentCap}. Completed tasks stop counting immediately.
+            </span>
+          </div>
+        </Card>
+
+        <Card
+          glyph="edit"
+          title="End-of-day reports"
+          description="The app composes the report from the day's real data. The only thing anyone types is what it added up to."
+        >
+          <div className="check-stack">
+            <Check
+              checked={form.reportRequired}
+              onChange={(v) => set({ reportRequired: v })}
+              title="Required to close the day"
+              detail="A day can't be ended without filing. Leave this on — the reports that go missing are the ones from the days someone rushed off, which are the days worth reading."
+            />
+            <Check
+              checked={form.planFromTasks}
+              onChange={(v) => set({ planFromTasks: v })}
+              title="Start the day's plan from assigned tasks"
+              detail="On check-in, every open task assigned to them appears on today's plan. They can add or remove lines freely; removals stick for the day."
+            />
+          </div>
+        </Card>
+      </div>
+
+      <Card
+        glyph="calendar"
+        title="The working week"
+        description="Which days count as working. Everything downstream reads this — the attendance roll, the calendar shading, and the denominator behind every attendance percentage."
+      >
+        <div className="day-pills">
+          {DAYS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={`day-pill ${form.workingDays.includes(value) ? 'on' : ''}`}
+              onClick={() => toggleDay(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="divider" />
+
+        <label className="field-label">DEFAULT CHECK-IN BY</label>
+        <div className="row">
+          <input
+            className="input"
+            type="time"
+            style={{ width: 180 }}
+            value={form.defaultCheckInBy}
+            onChange={(e) => set({ defaultCheckInBy: e.target.value })}
+          />
+          <span className="muted" style={{ fontSize: 13.5 }}>
+            Used for anyone without a time of their own. Set individual times on the People page.
+          </span>
+        </div>
+
+        <div className="divider" />
+
+        <label className="field-label">DISCARD AS IDLE AFTER</label>
+        <div className="row">
+          <input
+            className="input"
+            type="number"
+            min={2}
+            max={120}
+            style={{ width: 180 }}
+            value={form.idleAfterMinutes}
+            onChange={(e) => set({ idleAfterMinutes: Number(e.target.value) })}
+          />
+          <span className="muted" style={{ fontSize: 13.5 }}>
+            Minutes of silence from a running timer before the stretch stops counting as work.
+          </span>
+        </div>
+      </Card>
+
+      <Card
+        glyph="clipboard"
+        title="Onboarding checklist"
+        description={
+          <>
+            Nobody reaches the app until every item is ticked. Adding one here puts it in front of{' '}
+            <b>everyone</b>, including people who joined years ago.
+          </>
+        }
+        action={
+          <Check
+            checked={form.onboardingEnforced}
+            onChange={(v) => set({ onboardingEnforced: v })}
+            title="Enforce it"
+            detail="Off means the list is advisory."
+          />
+        }
+      >
+        <div className="bordered-list">
+          {steps.length === 0 && <p className="empty">No steps yet.</p>}
+          {steps.map((s) => (
+            <div key={s.id} className="list-row">
+              <div style={{ flex: 1 }}>
+                <b>{s.title}</b>
+                {s.description && <small>{s.description}</small>}
+              </div>
+              <button
+                className="btn-icon danger"
+                title="Remove step"
+                aria-label="Remove step"
+                onClick={() =>
+                  post('/api/settings/onboarding', { id: s.id }, 'Step removed.', 'DELETE')
+                }
+              >
+                <Icon.trash width={15} height={15} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="stack" style={{ marginTop: 18 }}>
+          <input
+            className="input"
+            placeholder="Sign the NDA"
+            value={step.title}
+            onChange={(e) => setStep({ ...step, title: e.target.value })}
+          />
+          <input
+            className="input"
+            placeholder="What they need to know"
+            value={step.description}
+            onChange={(e) => setStep({ ...step, description: e.target.value })}
+          />
+          <button
+            className="btn"
+            disabled={!step.title.trim()}
+            onClick={async () => {
+              const ok = await post('/api/settings/onboarding', step, 'Step added.');
+              if (ok) setStep({ title: '', description: '' });
+            }}
+          >
+            <Icon.plus width={15} height={15} />
+            Add step
+          </button>
+        </div>
+      </Card>
+
+      <Card
+        glyph="slack"
+        title="Slack"
+        description="Task assignments, status moves and deadline reminders, posted to one channel."
+        action={
+          <>
+            <span className={`chip ${webhookSet ? 'green' : ''}`}>
+              {webhookSet ? 'connected' : 'not connected'}
+            </span>
+            <button
+              className="btn btn-sm"
+              disabled={!webhookSet}
+              onClick={() => post('/api/settings/slack-test', {}, 'Test message sent to Slack.')}
+            >
+              <Icon.send width={14} height={14} />
+              Send test
+            </button>
+          </>
+        }
+      >
+        <div className="grid-2" style={{ gap: 26 }}>
+          <div>
+            <label className="field-label">INCOMING WEBHOOK URL</label>
+            <input
+              className="input"
+              type="password"
+              placeholder={webhookSet ? '••••••••• — saved' : 'https://hooks.slack.com/services/…'}
+              value={webhook}
+              onChange={(e) => setWebhook(e.target.value)}
+            />
+            <p className="hint">
+              Slack → api.slack.com/apps → your app → Incoming Webhooks → Add New Webhook to
+              Workspace. It&apos;s write-only and stored where only admins can read it.
+            </p>
+
+            <label className="field-label" style={{ marginTop: 22 }}>
+              CHANNEL <span style={{ textTransform: 'none' }}>for your own reference</span>
+            </label>
+            <input
+              className="input"
+              placeholder="#syncup-tasks"
+              value={form.slackChannel}
+              onChange={(e) => set({ slackChannel: e.target.value })}
+            />
+          </div>
+
+          <div
+            className="check-stack"
+            style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 22 }}
+          >
+            <Check
+              checked={form.slackEnabled}
+              onChange={(v) => set({ slackEnabled: v })}
+              title="Post to Slack"
+              detail="The master switch. Everything below is ignored while this is off."
+            />
+            <Check
+              checked={form.slackOnAssign}
+              onChange={(v) => set({ slackOnAssign: v })}
+              disabled={!form.slackEnabled}
+              title="New task assigned"
+              detail="A card with the owner, priority and deadline."
+            />
+            <Check
+              checked={form.slackOnStatus}
+              onChange={(v) => set({ slackOnStatus: v })}
+              disabled={!form.slackEnabled}
+              title="Status changes"
+              detail="One line per move: pending → progress → completed or blocked."
+            />
+            <Check
+              checked={form.slackOnDeadline}
+              onChange={(v) => set({ slackOnDeadline: v })}
+              disabled={!form.slackEnabled}
+              title="Deadline reminders"
+              detail="Due tomorrow, due today, then once a day while it stays late."
+            />
+          </div>
+        </div>
+
+        <div className="divider" />
+
+        <label className="field-label">REMINDER SCHEDULE</label>
+        <p className="hint" style={{ marginTop: 0 }}>
+          {cronConfigured
+            ? 'CRON_SECRET is set, so the scheduled run is armed. Vercel calls it once a morning.'
+            : "CRON_SECRET isn't set on this deployment, so the scheduled run is closed off. Set it in Vercel to switch reminders on — you can still fire a pass by hand below."}
+        </p>
+        <button
+          className="btn"
+          style={{ marginTop: 16 }}
+          onClick={async () => {
+            const data = await post('/api/cron/reminders', {}, null);
+            if (data) {
+              setNotice(
+                data.sent
+                  ? `Reminder pass done — ${data.reminded} task${data.reminded === 1 ? '' : 's'} posted.`
+                  : `Nothing posted: ${data.reason || 'Slack is off'}.`,
+              );
+            }
+          }}
+        >
+          <Icon.play width={15} height={15} />
+          Run reminders now
+        </button>
+      </Card>
+
+      <Card
+        glyph="robot"
+        title="Ask Claude about Syncup"
+        description="Connect Claude to this app as a tool, then ask in plain language — “who's over the task cap”, “summarise Friday's reports”, “who was late this month”. It can read attendance, tasks, daily reports, leave and holidays. It cannot change anything."
+      >
+        <label className="field-label">SERVER URL</label>
+        <div className="token-strip">{mcpUrl}</div>
+        <p className="hint">
+          In Claude, add a custom connector with this URL and paste a token below as the bearer
+          credential. Tokens are shown once and stored only as a hash.
+        </p>
+
+        <div className="divider" />
+
+        <label className="field-label">TOKENS · {tokens.length} LIVE</label>
+
+        {freshToken && (
+          <div className="notice-line" style={{ marginTop: 0, marginBottom: 16 }}>
+            <b>Copy this now — it is not shown again.</b>
+            <div className="token-strip" style={{ marginTop: 10 }}>
+              {freshToken}
+            </div>
+          </div>
+        )}
+
+        <div className="bordered-list">
+          {tokens.length === 0 && <p className="empty">No tokens yet.</p>}
+          {tokens.map((t) => (
+            <div key={t.id} className="list-row">
+              <div style={{ flex: 1 }}>
+                <b>{t.name}</b>
+                <small className="mono">
+                  {t.prefix}··· · created {t.createdAt} ·{' '}
+                  {t.lastUsedAt ? `last used ${t.lastUsedAt}` : 'never used'}
+                </small>
+              </div>
+              <button
+                className="btn btn-sm btn-danger"
+                onClick={() => post('/api/settings/mcp-token', { id: t.id }, 'Token revoked.', 'DELETE')}
+              >
+                Revoke
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="row" style={{ marginTop: 18 }}>
+          <input
+            className="input"
+            placeholder="What this token is for — “Ayush's laptop”"
+            value={tokenName}
+            onChange={(e) => setTokenName(e.target.value)}
+          />
+          <button
+            className="btn"
+            disabled={!tokenName.trim()}
+            onClick={async () => {
+              const data = await post('/api/settings/mcp-token', { name: tokenName }, null);
+              if (data?.token) {
+                setFreshToken(data.token);
+                setTokenName('');
+                setNotice('Token created.');
+              }
+            }}
+          >
+            <Icon.plus width={15} height={15} />
+            Create token
+          </button>
+        </div>
+      </Card>
+    </>
+  );
+}

@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  ADMIN
+  CEO
+}
+
+enum TaskStatus {
+  PENDING
+  PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LEAVE
+  HOLIDAY
+  ABSENT
+}
+
+enum SessionKind {
+  WORK
+  BREAK
+  IDLE
+}
+
+enum LeaveKind {
+  SICK
+  PLANNED
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(EMPLOYEE)
+  department   String?
+  title        String?
+  /// Per-person override for the check-in deadline, "HH:MM". Falls back to Settings.defaultCheckInBy.
+  checkInBy    String?
+  active       Boolean  @default(true)
+  joinedAt     DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  attendance         Attendance[]
+  planPoints         PlanPoint[]
+  sessions           WorkSession[]
+  reports            DailyReport[]
+  createdTasks       Task[]               @relation("TaskCreator")
+  assignedTasks      Task[]               @relation("TaskAssignee")
+  leaveRequests      LeaveRequest[]       @relation("LeaveOwner")
+  decidedLeave       LeaveRequest[]       @relation("LeaveDecider")
+  balances           LeaveBalance[]
+  onboardingProgress OnboardingProgress[]
+
+  @@index([active])
+}
+
+/// Single row, id = 1. Everything on the admin Settings page lives here.
+model Settings {
+  id Int @id @default(1)
+
+  // Assignment cap
+  assignmentCap Int @default(20)
+
+  // End-of-day reports
+  reportRequired Boolean @default(true)
+  planFromTasks  Boolean @default(true)
+
+  // The working week: ISO weekday numbers, 1 = Monday .. 7 = Sunday
+  workingDays      Int[]  @default([1, 2, 3, 4, 5, 6])
+  defaultCheckInBy String @default("09:30")
+
+  // Onboarding
+  onboardingEnforced Boolean @default(true)
+
+  // Slack
+  slackWebhookUrl String?
+  slackChannel    String?
+  slackEnabled    Boolean @default(false)
+  slackOnAssign   Boolean @default(true)
+  slackOnStatus   Boolean @default(true)
+  slackOnDeadline Boolean @default(true)
+
+  // Heartbeat: minutes without a beat before the stretch is discarded as idle
+  idleAfterMinutes Int @default(10)
+
+  updatedAt DateTime @updatedAt
+}
+
+model OnboardingStep {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  order       Int     @default(0)
+
+  progress OnboardingProgress[]
+}
+
+model OnboardingProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  stepId      String
+  completedAt DateTime @default(now())
+
+  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  step OnboardingStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stepId])
+}
+
+/// One row per person per calendar day.
+model Attendance {
+  id         String           @id @default(cuid())
+  userId     String
+  date       DateTime         @db.Date
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+  /// The deadline that applied on the day, frozen so later settings changes don't rewrite history.
+  checkInBy  String?
+  late       Boolean          @default(false)
+  status     AttendanceStatus @default(PRESENT)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+/// Work, break and idle stretches. Insights sums these; the heartbeat closes them.
+model WorkSession {
+  id          String      @id @default(cuid())
+  userId      String
+  date        DateTime    @db.Date
+  kind        SessionKind @default(WORK)
+  startedAt   DateTime
+  endedAt     DateTime?
+  /// Last heartbeat seen on this session. A stale beat means the tail is idle, not work.
+  lastBeatAt  DateTime?
+  /// Seconds reclassified as idle out of this session's span.
+  idleSeconds Int         @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([date])
+}
+
+/// A point on someone's plan for the day. Unfinished points carry to the next working day.
+model PlanPoint {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime @db.Date
+  title  String
+  done   Boolean  @default(false)
+  doneAt DateTime?
+  order  Int      @default(0)
+  /// Set when the point was auto-created from an assigned task.
+  taskId String?
+  /// The day this point first appeared, kept across carry-overs.
+  originDate DateTime? @db.Date
+  /// A point removed by hand stays removed for that day only.
+  dismissed  Boolean   @default(false)
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  detail      String?
+  status      TaskStatus @default(PENDING)
+  priority    Priority   @default(MEDIUM)
+  dueDate     DateTime?  @db.Date
+  assigneeId  String
+  creatorId   String
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  /// Last day a deadline reminder went out, so the daily pass doesn't repeat itself.
+  lastRemindedOn DateTime? @db.Date
+
+  assignee User        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  creator  User        @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  points   PlanPoint[]
+
+  @@index([assigneeId, status])
+  @@index([dueDate])
+}
+
+model DailyReport {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime @db.Date
+  /// The only free text anyone types. The rest is composed from the day's real data.
+  summary     String
+  submittedAt DateTime @default(now())
+
+  // Frozen at filing time so the report reads the same a year later.
+  minutesWorked  Int @default(0)
+  minutesBreak   Int @default(0)
+  minutesIdle    Int @default(0)
+  pointsDone     Int @default(0)
+  pointsTotal    Int @default(0)
+  tasksCompleted Int @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+model LeaveRequest {
+  id        String      @id @default(cuid())
+  userId    String
+  kind      LeaveKind
+  startDate DateTime    @db.Date
+  endDate   DateTime    @db.Date
+  days      Int
+  reason    String?
+  status    LeaveStatus @default(PENDING)
+  decidedById String?
+  decidedAt   DateTime?
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  user    User  @relation("LeaveOwner", fields: [userId], references: [id], onDelete: Cascade)
+  decider User? @relation("LeaveDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model LeaveBalance {
+  id          String @id @default(cuid())
+  userId      String
+  year        Int
+  sickTotal   Int    @default(12)
+  sickUsed    Int    @default(0)
+  plannedTotal Int   @default(12)
+  plannedUsed  Int   @default(0)
+  carried      Int   @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year])
+}
+
+model Holiday {
+  id   String   @id @default(cuid())
+  date DateTime @unique @db.Date
+  name String
+
+  @@index([date])
+}
+
+/// Bearer tokens for the read-only MCP endpoint. Shown once, stored only as a hash.
+model McpToken {
+  id         String    @id @default(cuid())
+  name       String
+  tokenHash  String    @unique
+  /// First characters of the token, so a row is recognisable in the list.
+  prefix     String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+}
