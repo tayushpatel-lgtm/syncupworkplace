@@ -103,6 +103,7 @@ model User {
   createdPasswords   PasswordEntry[]      @relation("PasswordCreator")
   passwordShares     PasswordShare[]
   mcpTokens          McpToken[]           @relation("McpTokenOwner")
+  oauthCodes         OAuthCode[]
 
   @@index([active])
 }
@@ -380,9 +381,51 @@ model McpToken {
   /// (task creator, leave decider) to this person.
   createdById String?
   createdBy   User?     @relation("McpTokenOwner", fields: [createdById], references: [id], onDelete: SetNull)
+  /// Set when this token was issued through the OAuth flow (e.g. Claude's
+  /// Connectors screen) rather than minted by hand in Settings.
+  oauthClientId String?
+  oauthClient   OAuthClient? @relation(fields: [oauthClientId], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
+}
+
+/// An OAuth client registered dynamically (RFC 7591) — one row per app that's
+/// ever asked to connect, e.g. Claude. Public client only: PKCE stands in for
+/// a client secret, since a secret has nowhere safe to live in a client like
+/// Claude's that runs in the browser or on someone else's server.
+model OAuthClient {
+  id           String   @id @default(cuid())
+  name         String?
+  redirectUris String[]
+  createdAt    DateTime @default(now())
+
+  codes  OAuthCode[]
+  tokens McpToken[]
+}
+
+/// A one-time authorization code, minted after a person logs in to Syncup and
+/// clicks Allow, exchanged at /oauth/token for a real access token. Five
+/// minutes is plenty — the exchange happens in the same round trip.
+model OAuthCode {
+  /// A high-entropy random string minted in application code (lib/oauth.js),
+  /// not a cuid — this is a short-lived bearer secret, not just a row id.
+  code          String    @id
+  clientId      String
+  userId        String
+  redirectUri   String
+  /// PKCE (RFC 7636) — base64url(SHA-256(code_verifier)) from /oauth/authorize,
+  /// checked against the code_verifier the client presents at /oauth/token.
+  codeChallenge String
+  scope         McpScope
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  client OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 /// A shortcut shown on the Apps page — company-wide, or scoped to one department.

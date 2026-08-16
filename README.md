@@ -201,15 +201,30 @@ hours. Admins can sync by hand from Settings regardless.
 
 ## Ask Claude about Syncup
 
-`/api/mcp` is an MCP server. Create a token in Settings — it is shown once
-and stored only as a SHA-256 hash — then add a custom connector in Claude
-pointing at the URL with that token as the bearer credential.
+`/api/mcp` is an MCP server, reachable two ways:
 
-A token is either **read-only** or **read-write**, chosen when it's created.
+- **OAuth** (RFC 6749 + PKCE, RFC 7636) — the path Claude's chat/Cowork
+  "Connectors" screen needs, since it only speaks OAuth. Add the server URL
+  there; it redirects to Syncup's own login, the person picks read-only or
+  full access on a plain consent screen, and a token is minted behind the
+  scenes. `/oauth/register` (Dynamic Client Registration, RFC 7591),
+  `/oauth/authorize`, and `/oauth/token` implement this; `/.well-known/
+  oauth-authorization-server` and `/.well-known/oauth-protected-resource`
+  are how a client discovers them without being told. Public clients only —
+  PKCE stands in for a client secret, since a secret has nowhere safe to live
+  in a client like Claude's.
+- **A static bearer token** — the path for Claude Code, the CLI
+  (`claude mcp add --transport http … --header "Authorization: Bearer …"`),
+  or a script. Create one by hand in Settings; it's shown once and stored
+  only as a SHA-256 hash.
+
+Both paths land in the same place: every token, however it was minted, is
+either **read-only** or **read-write**, and the Settings token list shows
+and revokes them identically (OAuth-issued ones carry a "via OAuth" badge).
 Read-only can only look things up. Read-write can also `assign_task`,
 `update_task_status` and `decide_leave` — every write action is attributed to
-whichever admin the token was minted for. Neither scope can delete a person
-or reset a password; those stay human-only actions in the app, on purpose.
+whichever person approved it. Neither scope can delete a person or reset a
+password; those stay human-only actions in the app, on purpose.
 
 Read tools: `who_is_in`, `attendance_summary`, `list_tasks`, `daily_reports`,
 `leave_overview`, `holidays`, `insights_summary`, `over_the_cap`.

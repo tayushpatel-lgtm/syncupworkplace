@@ -23,6 +23,7 @@ export default async function SettingsPage() {
         scope: true,
         createdAt: true,
         lastUsedAt: true,
+        oauthClientId: true,
         createdBy: { select: { name: true } },
       },
     }),
@@ -77,6 +78,7 @@ export default async function SettingsPage() {
           prefix: t.prefix,
           scope: t.scope,
           ownerName: t.createdBy?.name || null,
+          viaOAuth: !!t.oauthClientId,
           createdAt: t.createdAt.toISOString().slice(0, 10),
           lastUsedAt: t.lastUsedAt ? t.lastUsedAt.toISOString().slice(0, 10) : null,
         }))}

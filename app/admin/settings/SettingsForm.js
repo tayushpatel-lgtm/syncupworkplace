@@ -813,8 +813,12 @@ export default function SettingsForm({
         <label className="field-label">SERVER URL</label>
         <div className="token-strip">{mcpUrl}</div>
         <p className="hint">
-          In Claude, add a custom connector with this URL and paste a token below as the bearer
-          credential. Tokens are shown once and stored only as a hash.
+          <b>From Claude&apos;s chat/Cowork &quot;Connectors&quot; screen</b> — add this URL as a
+          custom connector and click through the sign-in prompt; it reuses your own Syncup login,
+          no token to copy. <b>From Claude Code or the CLI</b> — this URL still also accepts a
+          plain bearer token, minted below, passed as an <code>Authorization</code> header; that
+          path is the one to use if the Connectors screen&apos;s sign-in step ever fails you.
+          Either way, every token — however it was created — shows up below and revokes the same way.
         </p>
 
         <div className="divider" />
@@ -840,6 +844,11 @@ export default function SettingsForm({
                   <span className={`chip ${t.scope === 'READ_WRITE' ? 'amber' : ''}`} style={{ marginLeft: 6 }}>
                     {t.scope === 'READ_WRITE' ? 'read-write' : 'read-only'}
                   </span>
+                  {t.viaOAuth && (
+                    <span className="chip" style={{ marginLeft: 6 }}>
+                      via OAuth
+                    </span>
+                  )}
                 </b>
                 <small className="mono">
                   {t.prefix}··· · created {t.createdAt} ·{' '}

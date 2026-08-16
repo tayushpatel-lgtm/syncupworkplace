@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function LoginForm() {
+export default function LoginForm({ next = '/' }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +25,7 @@ export default function LoginForm() {
       setBusy(false);
       return;
     }
-    router.push('/');
+    router.push(next);
     router.refresh();
   }
 

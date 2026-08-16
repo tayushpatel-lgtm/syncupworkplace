@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/db';
 import { hashToken } from '../../../lib/tokens';
 import { TOOLS, toolsForScope, runTool } from '../../../lib/mcp-tools';
+import { appOrigin } from '../../../lib/origin';
 
 const PROTOCOL_VERSION = '2025-06-18';
 const SERVER = { name: 'syncup', title: 'Syncup', version: '1.0.0' };
@@ -86,11 +87,15 @@ async function handle(message, token) {
 export async function POST(request) {
   const token = await authorise(request);
   if (!token) {
+    const origin = await appOrigin();
     return new Response(JSON.stringify({ error: 'A valid bearer token is required.' }), {
       status: 401,
       headers: {
         'Content-Type': 'application/json',
-        'WWW-Authenticate': 'Bearer realm="syncup"',
+        // Points an OAuth-only client (e.g. Claude's Connectors screen) at
+        // where to discover /oauth/authorize — a plain static token, like the
+        // one Code-tab/CLI connections use, skips this and just works.
+        'WWW-Authenticate': `Bearer realm="syncup", resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
       },
     });
   }
