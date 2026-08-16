@@ -1,6 +1,6 @@
 import { currentUser, isAdmin } from '../../../../lib/auth';
 import { buildEodSummary } from '../../../../lib/roll';
-import { postChannelEvent, eodSummaryMessage } from '../../../../lib/slack';
+import { postChannelEvent, eodSummaryMessage, sendDirectMessage, markedAbsentDm } from '../../../../lib/slack';
 import { dayKey } from '../../../../lib/dates';
 import { safeEqual } from '../../../../lib/tokens';
 
@@ -16,6 +16,11 @@ async function runPass() {
     return { sent: false, reason: summary.holidayName ? `holiday: ${summary.holidayName}` : 'not a working day' };
   }
   const result = await postChannelEvent('eodSummary', eodSummaryMessage(summary));
+
+  for (const person of summary.absentUsers) {
+    await sendDirectMessage('absent', person, markedAbsentDm(summary.date));
+  }
+
   return { ...result, present: summary.present.length, absent: summary.absent.length, notPickedUp: summary.notPickedUp.length };
 }
 

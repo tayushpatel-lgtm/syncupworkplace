@@ -98,4 +98,29 @@ describe('the working day', () => {
     attendance = await testDb.attendance.findFirst({ where: { userId: person.id } });
     expect(attendance.checkOutAt).toBeNull();
   });
+
+  it('closes a session whose heartbeat has gone stale past the idle cut-off', async () => {
+    const settings = await testDb.settings.findUnique({ where: { id: 1 } });
+    const originalCutoff = settings.idleAfterMinutes;
+    await api('/api/settings', { method: 'POST', cookie: ceoCookie, body: { idleAfterMinutes: 2 } });
+
+    const person = await createPerson(ceoCookie);
+    await api('/api/day/check-in', { method: 'POST', cookie: person.cookie });
+
+    // Back-date the heartbeat well past the 2-minute cut-off — the same
+    // situation as a machine that went to sleep mid-session.
+    const stale = new Date(Date.now() - 10 * 60 * 1000);
+    await testDb.workSession.updateMany({ where: { userId: person.id, endedAt: null }, data: { lastBeatAt: stale, startedAt: stale } });
+
+    // Any endpoint that reconciles the day's sessions picks it up — switching
+    // to a break is the simplest one that doesn't need a plan point first.
+    const res = await api('/api/day/session', { method: 'POST', cookie: person.cookie, body: { kind: 'BREAK' } });
+    expect(res.status).toBe(200);
+
+    const closed = await testDb.workSession.findFirst({ where: { userId: person.id, kind: 'WORK' } });
+    expect(closed.endedAt).not.toBeNull();
+    expect(closed.endedAt.getTime()).toBe(stale.getTime());
+
+    await api('/api/settings', { method: 'POST', cookie: ceoCookie, body: { idleAfterMinutes: originalCutoff } });
+  });
 });

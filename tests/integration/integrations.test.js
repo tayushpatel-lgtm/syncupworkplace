@@ -60,6 +60,28 @@ describe('Slack bot and Sheets settings', () => {
     const res = await api('/api/settings', { method: 'POST', cookie: person.cookie, body: { sheetsEnabled: true } });
     expect(res.status).toBe(403);
   });
+
+  it('round-trips the per-event personal DM toggles', async () => {
+    const res = await api('/api/settings', {
+      method: 'POST',
+      cookie: ceoCookie,
+      body: { slackDmEnabled: true, slackDmOnAssign: false, slackDmOnAbsent: true, slackDmOnInactive: true, slackDmOnDailyPlan: true },
+    });
+    expect(res.status).toBe(200);
+
+    const settings = await testDb.settings.findUnique({ where: { id: 1 } });
+    expect(settings.slackDmOnAssign).toBe(false);
+    expect(settings.slackDmOnAbsent).toBe(true);
+    expect(settings.slackDmOnInactive).toBe(true);
+    expect(settings.slackDmOnDailyPlan).toBe(true);
+
+    // restore fixture defaults for later files
+    await api('/api/settings', {
+      method: 'POST',
+      cookie: ceoCookie,
+      body: { slackDmEnabled: false, slackDmOnAssign: true, slackDmOnAbsent: false, slackDmOnInactive: false, slackDmOnDailyPlan: false },
+    });
+  });
 });
 
 describe('EOD summary cron', () => {

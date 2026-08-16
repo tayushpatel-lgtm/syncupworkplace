@@ -147,6 +147,14 @@ model Settings {
   slackOnEodSummary Boolean @default(false)
   /// Master switch for personal DMs. Off means the bot only ever posts to the channel.
   slackDmEnabled  Boolean @default(false)
+  /// A task lands on them.
+  slackDmOnAssign Boolean @default(true)
+  /// End of day, on a working day, with no check-in recorded.
+  slackDmOnAbsent Boolean @default(false)
+  /// A running session got auto-closed for going quiet past the idle cut-off.
+  slackDmOnInactive Boolean @default(false)
+  /// Today's plan, sent right after check-in.
+  slackDmOnDailyPlan Boolean @default(false)
 
   // Google Sheets backup
   sheetsEnabled Boolean @default(false)
@@ -159,7 +167,7 @@ model Settings {
   sheetsLastSyncError String?
 
   // Heartbeat: minutes without a beat before the stretch is discarded as idle
-  idleAfterMinutes Int @default(10)
+  idleAfterMinutes Int @default(30)
 
   // Presence
   /// Minutes of recorded work a day needs to count as present, company default.

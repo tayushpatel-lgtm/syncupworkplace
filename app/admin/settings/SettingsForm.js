@@ -655,12 +655,43 @@ export default function SettingsForm({
               title="End-of-day summary"
               detail="Who was present, who wasn't, and which tasks never got picked up."
             />
+
+            <div className="divider" style={{ margin: '6px 0' }} />
+
             <Check
               checked={form.slackDmEnabled}
               onChange={(v) => set({ slackDmEnabled: v })}
               disabled={!form.slackBotEnabled}
-              title="Personal DMs"
-              detail="Also DM the person directly when a task is assigned to them. Needs users:read.email so the bot can match a Syncup account to a Slack account."
+              title="Personal DMs — master switch"
+              detail="Needs users:read.email so the bot can match a Syncup account to a Slack account, and each person's Slack ID (see Onboarding checklist)."
+            />
+            <Check
+              checked={form.slackDmOnAssign}
+              onChange={(v) => set({ slackDmOnAssign: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Task assigned to you"
+              detail="The moment a task lands on someone."
+            />
+            <Check
+              checked={form.slackDmOnAbsent}
+              onChange={(v) => set({ slackDmOnAbsent: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Marked absent"
+              detail={'"You were marked absent" — end of day, on a working day, with no check-in recorded. Sent alongside the channel summary.'}
+            />
+            <Check
+              checked={form.slackDmOnInactive}
+              onChange={(v) => set({ slackDmOnInactive: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Checked out for inactivity"
+              detail={'"You were checked out automatically" — their running session went quiet past the idle cut-off (device asleep or off, not just a tab or window switch).'}
+            />
+            <Check
+              checked={form.slackDmOnDailyPlan}
+              onChange={(v) => set({ slackDmOnDailyPlan: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Today's plan"
+              detail="A digest of their plan for the day, sent right after check-in."
             />
           </div>
         </div>

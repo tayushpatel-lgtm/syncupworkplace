@@ -92,11 +92,16 @@ sees every entry and can reassign sharing regardless of who added it.
 
 ## How the time is counted
 
-A running timer is not trusted on its own. The browser sends a heartbeat while the
-tab is alive; when the beats stop for longer than the idle cut-off, the session is
-closed at its **last sign of life** and the gap is recorded separately as discarded
-idle time. A sleeping machine or a forgotten tab therefore stops earning hours the
-moment it goes quiet, and Insights reports that discarded time rather than hiding it.
+A running timer is not trusted on its own. The browser sends a heartbeat every
+minute regardless of which tab or window has focus — switching tabs, switching
+apps, or minimising the browser must never look like idle time. What actually
+stops the heartbeat is the machine itself going to sleep or shutting down,
+since that's the one thing that stops a JS timer from firing at all. When the
+beats stop for longer than the idle cut-off (30 minutes by default), the
+session is closed at its **last sign of life** and the gap is recorded
+separately as discarded idle time, and Insights reports that discarded time
+rather than hiding it. If it's turned on, the person also gets a personal DM:
+"You were checked out automatically."
 
 Reconciliation runs whenever a person's day is read or written, so the figures are
 current without a background worker.
@@ -150,12 +155,26 @@ three event toggles: new task assigned, status changes, deadline reminders.
 Channel-only; Slack webhooks cannot DM anyone.
 
 **Bot app** — a real Slack app with a bot token (`chat:write` and
-`users:read.email`), for channel posts *and* personal DMs. Its own master
-switch, plus toggles for check-in, check-out, an end-of-day summary (who was
-present, who wasn't, which task-linked plan points never got ticked), and a
-DM the moment a task lands on someone. A Syncup email is matched to a Slack
-account with `users.lookupByEmail` the first time, then cached on the person's
-row. Set up from api.slack.com/apps → OAuth & Permissions → add the scopes →
+`users:read.email`), for channel posts *and* personal DMs.
+
+Channel events, each its own toggle: check-in, check-out, and an end-of-day
+summary — who was present, who wasn't, which task-linked plan points never
+got ticked.
+
+Personal DMs, gated by a master switch plus one toggle each:
+- **Task assigned to you** — the moment it lands on them.
+- **Marked absent** — end of day, on a working day, with no check-in recorded.
+  Sent alongside the channel summary.
+- **Checked out for inactivity** — their running session went quiet past the
+  idle cut-off (device asleep or off — see [How the time is
+  counted](#how-the-time-is-counted); a tab or window switch never triggers this).
+- **Today's plan** — a digest of their plan, sent right after check-in.
+
+DMs need a Slack account resolved for the person, which happens one of two
+ways: automatically the first time, via `users.lookupByEmail`; or up front,
+during onboarding, if the "Slack ID" step is in their checklist (see
+[Onboarding checklist](#onboarding-checklist)). Either way it's cached on the
+person's row. Set up the bot from api.slack.com/apps → OAuth & Permissions → add the scopes →
 Install to Workspace; the channel needs its ID (not its name), from the
 channel's "View channel details".
 

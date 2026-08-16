@@ -56,12 +56,13 @@ export default function MyDay(props) {
     return () => clearInterval(id);
   }, [running?.kind, running?.startedAt]);
 
-  // The heartbeat. Silence is what turns a running timer into discarded idle time,
-  // so a sleeping machine or a shut laptop simply stops counting.
+  // The heartbeat. Fires regardless of tab visibility — switching tabs or
+  // windows must never look like idle time. Only the machine itself going to
+  // sleep or shutting down actually stops a JS timer from firing, which is
+  // the one thing that should turn a running timer into discarded idle time.
   useEffect(() => {
     if (!running) return undefined;
     const beat = () => {
-      if (document.visibilityState === 'hidden') return;
       fetch('/api/day/heartbeat', { method: 'POST', keepalive: true }).catch(() => {});
     };
     beat();

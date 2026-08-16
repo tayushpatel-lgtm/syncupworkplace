@@ -48,7 +48,7 @@ export async function POST(request) {
   // It should show up on their plan today, not only tomorrow.
   await buildPlan(assignee, dayKey(), settings);
   await postToSlack('assign', taskAssignedMessage(task, assignee, user));
-  await sendDirectMessage(assignee, taskAssignedDm(task, user));
+  await sendDirectMessage('assign', assignee, taskAssignedDm(task, user));
 
   return Response.json({ ok: true, id: task.id });
 }
