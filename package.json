@@ -21,6 +21,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "prisma": "^6.19.0"
+    "prisma": "^6.19.0",
+    "vitest": "^4.1.10"
   }
 }
