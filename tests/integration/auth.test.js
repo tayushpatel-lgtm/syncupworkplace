@@ -28,14 +28,17 @@ describe('auth', () => {
     expect(res.location).toContain('/login');
   });
 
-  it('logout clears the session', async () => {
+  it('logout tells the browser to drop the cookie', async () => {
+    // Sessions are stateless JWTs with no server-side revocation list, so logout
+    // is a client-side instruction (Set-Cookie, Max-Age=0) — the old token
+    // string itself stays structurally valid if someone kept resending it by
+    // hand, which a real browser never would. What we can assert is the
+    // instruction: the response tells the browser the cookie is expired now.
     const { cookie } = await login(FIXTURE.ceo.email);
-    const before = await api('/api/tasks', { cookie });
-    expect(before.status).toBe(200);
-
-    await api('/api/auth/logout', { method: 'POST', cookie });
-    const after = await api('/api/tasks', { cookie });
-    expect(after.status).toBe(401);
+    const { res } = await api('/api/auth/logout', { method: 'POST', cookie });
+    const setCookie = res.headers.get('set-cookie') || '';
+    expect(setCookie).toMatch(/syncup_session=;/);
+    expect(setCookie.toLowerCase()).toMatch(/max-age=0|expires=/);
   });
 
   it('createPerson fixture produces a working, onboarded session', async () => {

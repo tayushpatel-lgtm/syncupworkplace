@@ -10,7 +10,11 @@
     "setup": "node scripts/setup.mjs",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
-    "db:reset": "prisma db push --force-reset && node prisma/seed.js"
+    "db:reset": "prisma db push --force-reset && node prisma/seed.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.mjs",
+    "test:all": "npm run test && npm run test:integration"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

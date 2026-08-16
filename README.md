@@ -146,6 +146,35 @@ something in both:
   attendance bands. Never used to encode a quantity, and always shipped with a
   text label rather than colour alone.
 
+## Testing
+
+```bash
+npm test                # unit tests — pure lib/ logic, no database, instant
+npm run test:integration  # the real server against a throwaway test database
+```
+
+Unit tests (`tests/unit/`) cover date math, encryption, token hashing, the
+password-vault access rules, and the other pure functions in `lib/` — no
+Postgres involved, safe to run anywhere, always.
+
+Integration tests (`tests/integration/`) start the actual app in dev mode
+against a dedicated `syncup_test` database and drive it over HTTP exactly like
+a browser would — login, the check-in → plan → report loop, the assignment
+cap, leave balances, task/password permission boundaries, attachment size
+limits, the MCP server. `tests/integration/global-setup.js` resets that
+database before every run (`prisma db push --force-reset`), so it only ever
+touches `syncup_test`, never your dev data or production.
+
+That reset is a destructive command, so Prisma's own safety check refuses to
+run it when it detects an AI coding agent driving the terminal, until a human
+explicitly says so. If you hit that prompt, it's not broken — reply with your
+consent and re-run with the environment variable it names. A human running
+`npm run test:integration` directly, or CI, never sees this prompt; it's
+specifically there to stop an agent from doing it unsupervised.
+
+CI (`.github/workflows/test.yml`) runs both against a Postgres service
+container on every push.
+
 ## Deploying
 
 Vercel plus a hosted Postgres. Set `DATABASE_URL`, `SESSION_SECRET`,
