@@ -30,14 +30,34 @@ hand-written CSS in `app/globals.css`.
 
 ```bash
 npm install
-cp .env.example .env          # then fill in DATABASE_URL and SESSION_SECRET
-npx prisma db push            # create the tables
-npm run db:seed               # a company with a month of history
+npm run setup     # asks for a Postgres URL, does the rest
 npm run dev
 ```
 
-Open the printed URL. The seed prints the accounts it made; they all share the
-password `syncup1234`:
+`npm run setup` writes `.env` with a freshly generated session secret, creates the
+database and tables if they aren't there, and loads a company with a month of
+history. Re-running it is safe — it keeps a `.env` you have already filled in.
+
+You need a Postgres connection string for it. Either a hosted one (Neon and
+Supabase both hand you one, nothing to install) or a local server:
+
+```bash
+brew install postgresql@16 && brew services start postgresql@16 && createdb syncup
+```
+
+<details>
+<summary>Doing it by hand instead</summary>
+
+```bash
+cp .env.example .env          # fill in DATABASE_URL and SESSION_SECRET
+npx prisma db push            # create the tables
+npm run db:seed               # demo data
+```
+</details>
+
+Then open **http://localhost:3000**. Keep the `npm run dev` terminal running —
+closing it stops the site. The seed prints the accounts it made; they all share
+the password `syncup1234`:
 
 | Account | Role |
 |---|---|
