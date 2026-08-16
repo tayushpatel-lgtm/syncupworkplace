@@ -57,6 +57,11 @@ enum PasswordVisibility {
   PEOPLE
 }
 
+enum McpScope {
+  READ_ONLY
+  READ_WRITE
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -69,6 +74,8 @@ model User {
   checkInBy    String?
   /// Per-person override for the minimum worked minutes to count as present. Falls back to Settings.minPresentMinutes.
   minPresentMinutes Int?
+  /// Cached result of a Slack users.lookupByEmail call, so a DM doesn't re-resolve it every time.
+  slackUserId  String?
   active       Boolean  @default(true)
   joinedAt     DateTime @default(now())
   createdAt    DateTime @default(now())
@@ -87,6 +94,7 @@ model User {
   createdApps        App[]
   createdPasswords   PasswordEntry[]      @relation("PasswordCreator")
   passwordShares     PasswordShare[]
+  mcpTokens          McpToken[]           @relation("McpTokenOwner")
 
   @@index([active])
 }
@@ -112,13 +120,35 @@ model Settings {
   // Onboarding
   onboardingEnforced Boolean @default(true)
 
-  // Slack
+  // Slack — incoming webhook (channel-only, the original path)
   slackWebhookUrl String?
   slackChannel    String?
   slackEnabled    Boolean @default(false)
   slackOnAssign   Boolean @default(true)
   slackOnStatus   Boolean @default(true)
   slackOnDeadline Boolean @default(true)
+
+  // Slack — bot app (channel via chat.postMessage, plus personal DMs)
+  /// xoxb-... bot token. Needs chat:write and users:read.email.
+  slackBotToken   String?
+  /// Channel ID (not name) the bot posts channel updates into, e.g. C0123456789.
+  slackChannelId  String?
+  slackBotEnabled Boolean @default(false)
+  slackOnCheckin  Boolean @default(false)
+  slackOnCheckout Boolean @default(false)
+  slackOnEodSummary Boolean @default(false)
+  /// Master switch for personal DMs. Off means the bot only ever posts to the channel.
+  slackDmEnabled  Boolean @default(false)
+
+  // Google Sheets backup
+  sheetsEnabled Boolean @default(false)
+  /// service-account email from the downloaded JSON key.
+  sheetsClientEmail String?
+  /// PEM private key from the downloaded JSON key.
+  sheetsPrivateKey  String?
+  sheetsSpreadsheetId String?
+  sheetsLastSyncAt    DateTime?
+  sheetsLastSyncError String?
 
   // Heartbeat: minutes without a beat before the stretch is discarded as idle
   idleAfterMinutes Int @default(10)
@@ -319,13 +349,20 @@ model Holiday {
   @@index([date])
 }
 
-/// Bearer tokens for the read-only MCP endpoint. Shown once, stored only as a hash.
+/// Bearer tokens for the MCP endpoint. Shown once, stored only as a hash.
 model McpToken {
   id         String    @id @default(cuid())
   name       String
   tokenHash  String    @unique
   /// First characters of the token, so a row is recognisable in the list.
   prefix     String
+  /// READ_ONLY can only call the query tools. READ_WRITE can also assign tasks,
+  /// change status and decide leave — never delete a person or reset a password.
+  scope      McpScope  @default(READ_ONLY)
+  /// The admin this token was minted for. Write tools attribute their actions
+  /// (task creator, leave decider) to this person.
+  createdById String?
+  createdBy   User?     @relation("McpTokenOwner", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?

@@ -1,6 +1,6 @@
 import { prisma } from '../../../lib/db';
 import { hashToken } from '../../../lib/tokens';
-import { TOOLS, runTool } from '../../../lib/mcp-tools';
+import { TOOLS, toolsForScope, runTool } from '../../../lib/mcp-tools';
 
 const PROTOCOL_VERSION = '2025-06-18';
 const SERVER = { name: 'syncup', title: 'Syncup', version: '1.0.0' };
@@ -19,15 +19,19 @@ async function authorise(request) {
   const offered = header.replace(/^Bearer\s+/i, '').trim();
   if (!offered) return null;
 
-  const token = await prisma.mcpToken.findUnique({ where: { tokenHash: hashToken(offered) } });
+  const token = await prisma.mcpToken.findUnique({
+    where: { tokenHash: hashToken(offered) },
+    include: { createdBy: true },
+  });
   if (!token || token.revokedAt) return null;
 
   await prisma.mcpToken.update({ where: { id: token.id }, data: { lastUsedAt: new Date() } });
   return token;
 }
 
-async function handle(message) {
+async function handle(message, token) {
   const { id, method, params } = message;
+  const scoped = toolsForScope(token.scope);
 
   switch (method) {
     case 'initialize':
@@ -36,22 +40,29 @@ async function handle(message) {
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER,
         instructions:
-          'Syncup holds one company\'s working day: attendance, the daily plan, tasks, end-of-day reports, leave and holidays. Every tool here reads; none of them writes.',
+          token.scope === 'READ_WRITE'
+            ? 'Syncup holds one company\'s working day: attendance, the daily plan, tasks, end-of-day reports, leave and holidays. This token can also assign tasks, change task status and decide leave requests — those actions are attributed to whoever this token was minted for. It can never delete a person or reset a password; those stay human-only actions in the app.'
+            : 'Syncup holds one company\'s working day: attendance, the daily plan, tasks, end-of-day reports, leave and holidays. This token is read-only.',
       });
 
     case 'ping':
       return rpc(id, {});
 
     case 'tools/list':
-      return rpc(id, { tools: TOOLS });
+      return rpc(id, { tools: scoped });
 
     case 'tools/call': {
       const name = params?.name;
-      if (!TOOLS.some((t) => t.name === name)) {
-        return rpcError(id, -32602, `No tool called "${name}".`);
+      const tool = scoped.find((t) => t.name === name);
+      if (!tool) {
+        const knowsIt = TOOLS.some((t) => t.name === name);
+        const message = knowsIt
+          ? `"${name}" needs a read-write token. This one is read-only.`
+          : `No tool called "${name}".`;
+        return rpcError(id, -32602, message);
       }
       try {
-        const result = await runTool(name, params?.arguments || {});
+        const result = await runTool(name, params?.arguments || {}, { actor: token.createdBy });
         return rpc(id, {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
           structuredContent: result,
@@ -93,11 +104,11 @@ export async function POST(request) {
 
   // A client may batch several calls into one array.
   if (Array.isArray(body)) {
-    const replies = (await Promise.all(body.map(handle))).filter(Boolean);
+    const replies = (await Promise.all(body.map((m) => handle(m, token)))).filter(Boolean);
     return replies.length === 0 ? new Response(null, { status: 202 }) : Response.json(replies);
   }
 
-  const reply = await handle(body);
+  const reply = await handle(body, token);
   return reply === null ? new Response(null, { status: 202 }) : Response.json(reply);
 }
 

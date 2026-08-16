@@ -3,7 +3,7 @@ import { apiUser } from '../../../lib/auth';
 import { getSettings } from '../../../lib/settings';
 import { openTaskCount, buildPlan } from '../../../lib/day';
 import { dayKey } from '../../../lib/dates';
-import { postToSlack, taskAssignedMessage } from '../../../lib/slack';
+import { postToSlack, taskAssignedMessage, sendDirectMessage, taskAssignedDm } from '../../../lib/slack';
 
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 
@@ -48,6 +48,7 @@ export async function POST(request) {
   // It should show up on their plan today, not only tomorrow.
   await buildPlan(assignee, dayKey(), settings);
   await postToSlack('assign', taskAssignedMessage(task, assignee, user));
+  await sendDirectMessage(assignee, taskAssignedDm(task, user));
 
   return Response.json({ ok: true, id: task.id });
 }

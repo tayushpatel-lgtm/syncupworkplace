@@ -116,6 +116,8 @@ Everything on `/admin/settings` is enforced server-side, not just in the UI.
 | Minimum hours to count as present | Checked in isn't enough — under this and the day reads as short, not present |
 | Onboarding checklist | Gates the whole app while enforced and unfinished |
 | Departments | What People's dropdowns, Apps' scoping and the password vault's sharing pick from |
+| Slack webhook / bot | Channel and DM notifications — see [Slack](#slack) |
+| Google Sheets credentials | Whether the backup sync can run — see [Google Sheets backup](#google-sheets-backup) |
 
 People are added, deactivated, and have their password reset — including
 generating one — from `/admin/people`. Only the CEO can touch another CEO's
@@ -127,23 +129,57 @@ are kept) into the bulk importer there.
 
 ## Slack
 
-Set an incoming webhook in Settings, then use the master switch plus the three
-event toggles. Deadline reminders run once a day: due tomorrow, due today, then
-once a day while a task stays late.
+Two independent paths, either or both:
 
-The scheduled run is at `/api/cron/reminders` and requires `CRON_SECRET` as a
-bearer token — without it the path returns 503 and stays closed. `vercel.json`
-already schedules it. Admins can fire a pass by hand from Settings regardless.
+**Incoming webhook** — set it in Settings, then use the master switch plus the
+three event toggles: new task assigned, status changes, deadline reminders.
+Channel-only; Slack webhooks cannot DM anyone.
+
+**Bot app** — a real Slack app with a bot token (`chat:write` and
+`users:read.email`), for channel posts *and* personal DMs. Its own master
+switch, plus toggles for check-in, check-out, an end-of-day summary (who was
+present, who wasn't, which task-linked plan points never got ticked), and a
+DM the moment a task lands on someone. A Syncup email is matched to a Slack
+account with `users.lookupByEmail` the first time, then cached on the person's
+row. Set up from api.slack.com/apps → OAuth & Permissions → add the scopes →
+Install to Workspace; the channel needs its ID (not its name), from the
+channel's "View channel details".
+
+Deadline reminders run once a day: due tomorrow, due today, then once a day
+while a task stays late. The scheduled runs are at `/api/cron/reminders` and
+`/api/cron/eod-summary`, both requiring `CRON_SECRET` as a bearer token —
+without it either path returns 503 and stays closed. `vercel.json` already
+schedules both. Admins can fire either by hand from Settings regardless.
+
+## Google Sheets backup
+
+A full mirror of the database, one tab per table, refreshed on a schedule —
+a plain-text backup that lives outside Postgres. Deliberately excludes the
+password vault (`PasswordEntry`/`PasswordShare`) and MCP token hashes:
+nothing that grants access to the app ever leaves it. The `Settings` tab
+itself drops its own credential fields for the same reason.
+
+Set up a Google Cloud service account (IAM & Admin → Service Accounts → Keys
+→ Add key, JSON), paste its `client_email` and `private_key` into Settings,
+share a blank Google Sheet with that email as an Editor, and paste the
+sheet's id. The scheduled run is at `/api/cron/sheets-sync`, same
+`CRON_SECRET` gate as the Slack crons, `vercel.json`-scheduled every six
+hours. Admins can sync by hand from Settings regardless.
 
 ## Ask Claude about Syncup
 
-`/api/mcp` is a read-only MCP server. Create a token in Settings — it is shown once
-and stored only as a SHA-256 hash — then add a custom connector in Claude pointing
-at the URL with that token as the bearer credential.
+`/api/mcp` is an MCP server. Create a token in Settings — it is shown once
+and stored only as a SHA-256 hash — then add a custom connector in Claude
+pointing at the URL with that token as the bearer credential.
 
-Tools: `who_is_in`, `attendance_summary`, `list_tasks`, `daily_reports`,
-`leave_overview`, `holidays`, `insights_summary`, `over_the_cap`. Every one of them
-reads; none of them writes.
+A token is either **read-only** or **read-write**, chosen when it's created.
+Read-only can only look things up. Read-write can also `assign_task`,
+`update_task_status` and `decide_leave` — every write action is attributed to
+whichever admin the token was minted for. Neither scope can delete a person
+or reset a password; those stay human-only actions in the app, on purpose.
+
+Read tools: `who_is_in`, `attendance_summary`, `list_tasks`, `daily_reports`,
+`leave_overview`, `holidays`, `insights_summary`, `over_the_cap`.
 
 ## Colour
 

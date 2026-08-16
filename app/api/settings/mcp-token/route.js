@@ -3,15 +3,18 @@ import { apiUser } from '../../../../lib/auth';
 import { mintToken } from '../../../../lib/tokens';
 
 export async function POST(request) {
-  const { error } = await apiUser({ admin: true });
+  const { user, error } = await apiUser({ admin: true });
   if (error) return error;
 
-  const { name } = await request.json().catch(() => ({}));
+  const { name, scope } = await request.json().catch(() => ({}));
   const label = String(name || '').trim();
   if (!label) return Response.json({ error: 'Give the token a name.' }, { status: 400 });
+  const grantedScope = scope === 'READ_WRITE' ? 'READ_WRITE' : 'READ_ONLY';
 
   const { token, hash, prefix } = mintToken();
-  await prisma.mcpToken.create({ data: { name: label, tokenHash: hash, prefix } });
+  await prisma.mcpToken.create({
+    data: { name: label, tokenHash: hash, prefix, scope: grantedScope, createdById: user.id },
+  });
 
   // The only time the plaintext ever leaves this process.
   return Response.json({ ok: true, token });

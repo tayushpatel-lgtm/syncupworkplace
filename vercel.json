@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/reminders",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/eod-summary",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/sheets-sync",
+      "schedule": "0 */6 * * *"
     }
   ]
 }

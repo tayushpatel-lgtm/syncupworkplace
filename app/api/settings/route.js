@@ -62,11 +62,24 @@ export async function POST(request) {
     'slackOnAssign',
     'slackOnStatus',
     'slackOnDeadline',
+    'slackBotEnabled',
+    'slackOnCheckin',
+    'slackOnCheckout',
+    'slackOnEodSummary',
+    'slackDmEnabled',
+    'sheetsEnabled',
   ]) {
     if (body[flag] !== undefined) data[flag] = !!body[flag];
   }
 
   if (body.slackChannel !== undefined) data.slackChannel = String(body.slackChannel).trim() || null;
+  if (body.slackChannelId !== undefined) data.slackChannelId = String(body.slackChannelId).trim() || null;
+  if (body.sheetsSpreadsheetId !== undefined) {
+    data.sheetsSpreadsheetId = String(body.sheetsSpreadsheetId).trim() || null;
+  }
+  if (body.sheetsClientEmail !== undefined) {
+    data.sheetsClientEmail = String(body.sheetsClientEmail).trim() || null;
+  }
 
   // Only overwrite the webhook when a new one is actually typed — the form sends
   // a blank field on every other save, and that must not wipe a working hook.
@@ -79,6 +92,24 @@ export async function POST(request) {
       );
     }
     data.slackWebhookUrl = url;
+  }
+
+  // Same rule for the bot token and the service-account private key — a blank
+  // field on save must never wipe a credential that is already stored.
+  if (body.slackBotToken) {
+    const token = String(body.slackBotToken).trim();
+    if (!/^xoxb-/.test(token)) {
+      return Response.json({ error: 'That does not look like a Slack bot token (starts with xoxb-).' }, { status: 400 });
+    }
+    data.slackBotToken = token;
+  }
+
+  if (body.sheetsPrivateKey) {
+    const key = String(body.sheetsPrivateKey).trim();
+    if (!key.includes('PRIVATE KEY')) {
+      return Response.json({ error: 'That does not look like a private key from a service account JSON key.' }, { status: 400 });
+    }
+    data.sheetsPrivateKey = key;
   }
 
   await prisma.settings.update({ where: { id: SETTINGS_ID }, data });

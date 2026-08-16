@@ -16,7 +16,15 @@ export default async function SettingsPage() {
     prisma.mcpToken.findMany({
       where: { revokedAt: null },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, name: true, prefix: true, createdAt: true, lastUsedAt: true },
+      select: {
+        id: true,
+        name: true,
+        prefix: true,
+        scope: true,
+        createdAt: true,
+        lastUsedAt: true,
+        createdBy: { select: { name: true } },
+      },
     }),
     prisma.app.findMany({ orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
   ]);
@@ -42,16 +50,29 @@ export default async function SettingsPage() {
           slackOnAssign: settings.slackOnAssign,
           slackOnStatus: settings.slackOnStatus,
           slackOnDeadline: settings.slackOnDeadline,
+          slackChannelId: settings.slackChannelId || '',
+          slackBotEnabled: settings.slackBotEnabled,
+          slackOnCheckin: settings.slackOnCheckin,
+          slackOnCheckout: settings.slackOnCheckout,
+          slackOnEodSummary: settings.slackOnEodSummary,
+          slackDmEnabled: settings.slackDmEnabled,
+          sheetsEnabled: settings.sheetsEnabled,
+          sheetsClientEmail: settings.sheetsClientEmail || '',
+          sheetsSpreadsheetId: settings.sheetsSpreadsheetId || '',
           idleAfterMinutes: settings.idleAfterMinutes,
           minPresentMinutes: settings.minPresentMinutes,
         }}
         webhookSet={!!settings.slackWebhookUrl}
+        botTokenSet={!!settings.slackBotToken}
+        sheetsKeySet={!!settings.sheetsPrivateKey}
         cronConfigured={!!process.env.CRON_SECRET}
         steps={steps.map((s) => ({ id: s.id, title: s.title, description: s.description || '' }))}
         tokens={tokens.map((t) => ({
           id: t.id,
           name: t.name,
           prefix: t.prefix,
+          scope: t.scope,
+          ownerName: t.createdBy?.name || null,
           createdAt: t.createdAt.toISOString().slice(0, 10),
           lastUsedAt: t.lastUsedAt ? t.lastUsedAt.toISOString().slice(0, 10) : null,
         }))}

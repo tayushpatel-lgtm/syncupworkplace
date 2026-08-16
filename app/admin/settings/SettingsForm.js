@@ -38,6 +38,8 @@ function Check({ checked, onChange, title, detail, disabled = false }) {
 export default function SettingsForm({
   initial,
   webhookSet,
+  botTokenSet,
+  sheetsKeySet,
   cronConfigured,
   steps,
   tokens,
@@ -48,11 +50,14 @@ export default function SettingsForm({
   const router = useRouter();
   const [form, setForm] = useState(initial);
   const [webhook, setWebhook] = useState('');
+  const [botToken, setBotToken] = useState('');
+  const [sheetsKey, setSheetsKey] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [step, setStep] = useState({ title: '', description: '' });
   const [tokenName, setTokenName] = useState('');
+  const [tokenScope, setTokenScope] = useState('READ_ONLY');
   const [freshToken, setFreshToken] = useState('');
   const [app, setApp] = useState({ name: '', description: '', url: '', icon: '◆', department: '' });
   const [deptName, setDeptName] = useState('');
@@ -92,10 +97,17 @@ export default function SettingsForm({
     setSaving(true);
     await post(
       '/api/settings',
-      { ...form, slackWebhookUrl: webhook || undefined },
+      {
+        ...form,
+        slackWebhookUrl: webhook || undefined,
+        slackBotToken: botToken || undefined,
+        sheetsPrivateKey: sheetsKey || undefined,
+      },
       'Settings saved.',
     );
     setWebhook('');
+    setBotToken('');
+    setSheetsKey('');
     setSaving(false);
   }
 
@@ -544,9 +556,210 @@ export default function SettingsForm({
       </Card>
 
       <Card
+        glyph="slack"
+        title="Slack bot — channel + personal DMs"
+        description="A second, independent path that also DMs people directly: check-in, check-out, an end-of-day summary in the channel, plus a personal DM the moment a task lands on someone."
+        action={
+          <>
+            <span className={`chip ${botTokenSet ? 'green' : ''}`}>
+              {botTokenSet ? 'token saved' : 'no token'}
+            </span>
+            <button
+              className="btn btn-sm"
+              disabled={!botTokenSet}
+              onClick={() => post('/api/settings/slack-bot-test', {}, 'Test message sent to the channel.')}
+            >
+              <Icon.send width={14} height={14} />
+              Send test
+            </button>
+          </>
+        }
+      >
+        <div className="grid-2" style={{ gap: 26 }}>
+          <div>
+            <label className="field-label">BOT TOKEN</label>
+            <input
+              className="input"
+              type="password"
+              placeholder={botTokenSet ? '••••••••• — saved' : 'xoxb-…'}
+              value={botToken}
+              onChange={(e) => setBotToken(e.target.value)}
+            />
+            <p className="hint">
+              api.slack.com/apps → your app (or a new one) → OAuth &amp; Permissions → add the{' '}
+              <code>chat:write</code> and <code>users:read.email</code> bot scopes → Install to
+              Workspace → copy the Bot User OAuth Token.
+            </p>
+
+            <label className="field-label" style={{ marginTop: 22 }}>
+              CHANNEL ID
+            </label>
+            <input
+              className="input"
+              placeholder="C0123456789"
+              value={form.slackChannelId || ''}
+              onChange={(e) => set({ slackChannelId: e.target.value })}
+            />
+            <p className="hint">
+              Invite the bot to #syncup-workplace, then open the channel → View channel details →
+              copy the Channel ID at the bottom. Not the channel name — the ID.
+            </p>
+          </div>
+
+          <div
+            className="check-stack"
+            style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 22 }}
+          >
+            <Check
+              checked={form.slackBotEnabled}
+              onChange={(v) => set({ slackBotEnabled: v })}
+              title="Turn the bot on"
+              detail="Master switch for this whole card. Independent of the webhook above."
+            />
+            <Check
+              checked={form.slackOnCheckin}
+              onChange={(v) => set({ slackOnCheckin: v })}
+              disabled={!form.slackBotEnabled}
+              title="Check-in"
+              detail="Posted to the channel the moment someone arrives."
+            />
+            <Check
+              checked={form.slackOnCheckout}
+              onChange={(v) => set({ slackOnCheckout: v })}
+              disabled={!form.slackBotEnabled}
+              title="Check-out"
+              detail="Posted with the hours recorded that day."
+            />
+            <Check
+              checked={form.slackOnEodSummary}
+              onChange={(v) => set({ slackOnEodSummary: v })}
+              disabled={!form.slackBotEnabled}
+              title="End-of-day summary"
+              detail="Who was present, who wasn't, and which tasks never got picked up."
+            />
+            <Check
+              checked={form.slackDmEnabled}
+              onChange={(v) => set({ slackDmEnabled: v })}
+              disabled={!form.slackBotEnabled}
+              title="Personal DMs"
+              detail="Also DM the person directly when a task is assigned to them. Needs users:read.email so the bot can match a Syncup account to a Slack account."
+            />
+          </div>
+        </div>
+
+        <div className="divider" />
+
+        <label className="field-label">END-OF-DAY SUMMARY</label>
+        <p className="hint" style={{ marginTop: 0 }}>
+          {cronConfigured
+            ? 'CRON_SECRET is set, so the scheduled run is armed — once daily.'
+            : "CRON_SECRET isn't set on this deployment, so the scheduled run is closed off. You can still fire one by hand below."}
+        </p>
+        <button
+          className="btn"
+          style={{ marginTop: 16 }}
+          onClick={async () => {
+            const data = await post('/api/cron/eod-summary', {}, null);
+            if (data) {
+              setNotice(
+                data.sent
+                  ? `Summary posted — ${data.present} present, ${data.absent} absent, ${data.notPickedUp} task(s) not picked up.`
+                  : `Nothing posted: ${data.reason || 'the bot is off'}.`,
+              );
+            }
+          }}
+        >
+          <Icon.play width={15} height={15} />
+          Send today's summary now
+        </button>
+      </Card>
+
+      <Card
+        glyph="grid"
+        title="Google Sheets backup"
+        description="Every table mirrored into its own tab on a schedule — a plain-text backup outside this database. The password vault and MCP tokens are never included, on purpose: nothing that grants access ever leaves the app."
+        action={
+          <>
+            <span className={`chip ${sheetsKeySet ? 'green' : ''}`}>
+              {sheetsKeySet ? 'key saved' : 'no key'}
+            </span>
+            <button
+              className="btn btn-sm"
+              disabled={!sheetsKeySet}
+              onClick={async () => {
+                const data = await post('/api/cron/sheets-sync', {}, null);
+                if (data) {
+                  setNotice(
+                    data.synced
+                      ? `Synced ${data.tables} tabs.`
+                      : `Sync failed: ${data.reason || 'unknown error'}.`,
+                  );
+                }
+              }}
+            >
+              <Icon.send width={14} height={14} />
+              Sync now
+            </button>
+          </>
+        }
+      >
+        <div className="grid-2" style={{ gap: 26 }}>
+          <div>
+            <label className="field-label">SERVICE ACCOUNT EMAIL</label>
+            <input
+              className="input"
+              placeholder="syncup-backup@your-project.iam.gserviceaccount.com"
+              value={form.sheetsClientEmail || ''}
+              onChange={(e) => set({ sheetsClientEmail: e.target.value })}
+            />
+
+            <label className="field-label" style={{ marginTop: 22 }}>
+              PRIVATE KEY
+            </label>
+            <textarea
+              className="input"
+              rows={3}
+              style={{ fontFamily: 'monospace', fontSize: 12 }}
+              placeholder={sheetsKeySet ? '••••••••• — saved' : '-----BEGIN PRIVATE KEY-----…'}
+              value={sheetsKey}
+              onChange={(e) => setSheetsKey(e.target.value)}
+            />
+            <p className="hint">
+              Google Cloud Console → a project → IAM &amp; Admin → Service Accounts → create one →
+              Keys → Add key (JSON). Paste the <code>client_email</code> and{' '}
+              <code>private_key</code> fields from the downloaded file.
+            </p>
+          </div>
+
+          <div>
+            <label className="field-label">SPREADSHEET ID</label>
+            <input
+              className="input"
+              placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+              value={form.sheetsSpreadsheetId || ''}
+              onChange={(e) => set({ sheetsSpreadsheetId: e.target.value })}
+            />
+            <p className="hint">
+              The long id in the sheet&apos;s URL. Create a blank Google Sheet, share it with the
+              service account email above as an Editor, then paste its id here.
+            </p>
+
+            <div className="divider" />
+
+            <Check
+              checked={form.sheetsEnabled}
+              onChange={(v) => set({ sheetsEnabled: v })}
+              title="Turn the backup on"
+              detail="Once on, a scheduled pass refreshes every tab automatically."
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card
         glyph="robot"
         title="Ask Claude about Syncup"
-        description="Connect Claude to this app as a tool, then ask in plain language — “who's over the task cap”, “summarise Friday's reports”, “who was late this month”. It can read attendance, tasks, daily reports, leave and holidays. It cannot change anything."
+        description="Connect Claude to this app as a tool, then ask in plain language — “who's over the task cap”, “summarise Friday's reports”, “who was late this month”. A read-only token can only look things up. A read-write token can also assign tasks, move a task's status and decide leave requests — never delete a person or reset a password, those stay human-only in the app."
       >
         <label className="field-label">SERVER URL</label>
         <div className="token-strip">{mcpUrl}</div>
@@ -573,10 +786,16 @@ export default function SettingsForm({
           {tokens.map((t) => (
             <div key={t.id} className="list-row">
               <div style={{ flex: 1 }}>
-                <b>{t.name}</b>
+                <b>
+                  {t.name}{' '}
+                  <span className={`chip ${t.scope === 'READ_WRITE' ? 'amber' : ''}`} style={{ marginLeft: 6 }}>
+                    {t.scope === 'READ_WRITE' ? 'read-write' : 'read-only'}
+                  </span>
+                </b>
                 <small className="mono">
                   {t.prefix}··· · created {t.createdAt} ·{' '}
                   {t.lastUsedAt ? `last used ${t.lastUsedAt}` : 'never used'}
+                  {t.scope === 'READ_WRITE' && t.ownerName ? ` · attributed to ${t.ownerName}` : ''}
                 </small>
               </div>
               <button
@@ -589,29 +808,34 @@ export default function SettingsForm({
           ))}
         </div>
 
-        <div className="row" style={{ marginTop: 18 }}>
+        <div className="grid-2" style={{ gap: 14, marginTop: 18 }}>
           <input
             className="input"
-            placeholder="What this token is for — “Ayush's laptop”"
+            placeholder="What this token is for — “Ayush's personal Claude”"
             value={tokenName}
             onChange={(e) => setTokenName(e.target.value)}
           />
-          <button
-            className="btn"
-            disabled={!tokenName.trim()}
-            onClick={async () => {
-              const data = await post('/api/settings/mcp-token', { name: tokenName }, null);
-              if (data?.token) {
-                setFreshToken(data.token);
-                setTokenName('');
-                setNotice('Token created.');
-              }
-            }}
-          >
-            <Icon.plus width={15} height={15} />
-            Create token
-          </button>
+          <select className="select" value={tokenScope} onChange={(e) => setTokenScope(e.target.value)}>
+            <option value="READ_ONLY">Read-only — can only look things up</option>
+            <option value="READ_WRITE">Read-write — can also assign tasks, move status, decide leave</option>
+          </select>
         </div>
+        <button
+          className="btn"
+          style={{ marginTop: 14 }}
+          disabled={!tokenName.trim()}
+          onClick={async () => {
+            const data = await post('/api/settings/mcp-token', { name: tokenName, scope: tokenScope }, null);
+            if (data?.token) {
+              setFreshToken(data.token);
+              setTokenName('');
+              setNotice('Token created.');
+            }
+          }}
+        >
+          <Icon.plus width={15} height={15} />
+          Create token
+        </button>
       </Card>
     </>
   );
