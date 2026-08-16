@@ -196,8 +196,10 @@ Set up a Google Cloud service account (IAM & Admin → Service Accounts → Keys
 → Add key, JSON), paste its `client_email` and `private_key` into Settings,
 share a blank Google Sheet with that email as an Editor, and paste the
 sheet's id. The scheduled run is at `/api/cron/sheets-sync`, same
-`CRON_SECRET` gate as the Slack crons, `vercel.json`-scheduled every six
-hours. Admins can sync by hand from Settings regardless.
+`CRON_SECRET` gate as the Slack crons, `vercel.json`-scheduled once daily
+(Vercel's Hobby plan only allows daily cron schedules — a Pro plan can run it
+more often by changing the schedule in `vercel.json`). Admins can sync by
+hand from Settings regardless.
 
 ## Ask Claude about Syncup
 
