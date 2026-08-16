@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   const user = await requireAdmin();
   const settings = await getSettings();
 
-  const [steps, tokens, apps, departmentRows] = await Promise.all([
+  const [steps, tokens, apps] = await Promise.all([
     prisma.onboardingStep.findMany({ orderBy: { order: 'asc' } }),
     prisma.mcpToken.findMany({
       where: { revokedAt: null },
@@ -19,13 +19,8 @@ export default async function SettingsPage() {
       select: { id: true, name: true, prefix: true, createdAt: true, lastUsedAt: true },
     }),
     prisma.app.findMany({ orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
-    prisma.user.findMany({
-      where: { active: true, department: { not: null } },
-      select: { department: true },
-      distinct: ['department'],
-    }),
   ]);
-  const departments = departmentRows.map((d) => d.department).filter(Boolean).sort();
+  const departments = settings.departments;
 
   // The MCP URL has to be the one people actually reach this deployment on.
   const head = await headers();

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '../../../components/Icons';
-import { Person } from '../../../components/ui';
+import { Person, Modal } from '../../../components/ui';
 
 const ROLES = [
   ['EMPLOYEE', 'Employee'],
@@ -21,11 +21,37 @@ const BLANK = {
   checkInBy: '',
 };
 
+const PASSWORD_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+
+/** A readable random password — no 0/O/1/l/I, the characters people mistype. */
+function generatePassword(length = 14) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => PASSWORD_CHARS[b % PASSWORD_CHARS.length]).join('');
+}
+
+function DepartmentSelect({ value, departments, onChange, style }) {
+  // A legacy or hand-typed value that isn't in the managed list yet still
+  // needs to show up, so editing never silently blanks someone's department.
+  const options = value && !departments.includes(value) ? [value, ...departments] : departments;
+  return (
+    <select className="select" value={value} onChange={onChange} style={style}>
+      <option value="">No department</option>
+      {options.map((d) => (
+        <option key={d} value={d}>
+          {d}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export default function PeopleManager({
   people,
   defaultCheckInBy,
   defaultMinPresentMinutes,
   assignmentCap,
+  departments,
   currentUserId,
   isCeo,
 }) {
@@ -34,7 +60,10 @@ export default function PeopleManager({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [resetting, setResetting] = useState(null); // the person whose password is being set
+  const [pw, setPw] = useState('');
+  const [pwSaved, setPwSaved] = useState(false);
+  const [pwError, setPwError] = useState('');
 
   async function add(e) {
     e.preventDefault();
@@ -71,9 +100,31 @@ export default function PeopleManager({
       return false;
     }
     if (message) setNotice(message);
-    setEditing(null);
     router.refresh();
     return true;
+  }
+
+  function openReset(person) {
+    setResetting(person);
+    setPw(generatePassword());
+    setPwSaved(false);
+    setPwError('');
+  }
+
+  async function submitReset(e) {
+    e.preventDefault();
+    setPwError('');
+    const res = await fetch(`/api/people/${resetting.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setPwError(data.error || 'Could not set that password.');
+      return;
+    }
+    setPwSaved(true);
   }
 
   return (
@@ -117,26 +168,36 @@ export default function PeopleManager({
             </div>
             <div>
               <label className="field-label">FIRST PASSWORD</label>
-              <input
-                className="input"
-                type="text"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="At least 8 characters"
-                minLength={8}
-                required
-              />
+              <div className="row" style={{ gap: 6 }}>
+                <input
+                  className="input"
+                  type="text"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="At least 8 characters"
+                  minLength={8}
+                  required
+                />
+                <button
+                  type="button"
+                  className="btn-icon"
+                  title="Generate a password"
+                  aria-label="Generate a password"
+                  onClick={() => setForm({ ...form, password: generatePassword() })}
+                >
+                  <Icon.key width={15} height={15} />
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="grid-4" style={{ gap: 18, marginTop: 18 }}>
             <div>
               <label className="field-label">DEPARTMENT</label>
-              <input
-                className="input"
+              <DepartmentSelect
                 value={form.department}
+                departments={departments}
                 onChange={(e) => setForm({ ...form, department: e.target.value })}
-                placeholder="Engineering"
               />
             </div>
             <div>
@@ -201,95 +262,148 @@ export default function PeopleManager({
             </tr>
           </thead>
           <tbody>
-            {people.map((p) => {
-              const isEditing = editing === p.id;
-              return (
-                <tr key={p.id} style={p.active ? undefined : { opacity: 0.5 }}>
-                  <td>
-                    <Person name={p.name} sub={p.email} />
-                  </td>
-                  <td>
-                    {isEditing ? (
-                      <input
-                        className="input"
-                        defaultValue={p.department}
-                        onBlur={(e) => patch(p.id, { department: e.target.value })}
-                      />
-                    ) : (
-                      <span className="muted">{p.department || '—'}</span>
-                    )}
-                  </td>
-                  <td>
-                    <select
-                      className="select"
-                      value={p.role}
+            {people.map((p) => (
+              <tr key={p.id} style={p.active ? undefined : { opacity: 0.5 }}>
+                <td>
+                  <Person name={p.name} sub={p.email} />
+                </td>
+                <td>
+                  <DepartmentSelect
+                    value={p.department}
+                    departments={departments}
+                    onChange={(e) => patch(p.id, { department: e.target.value })}
+                    style={{ padding: '7px 10px', width: 'auto' }}
+                  />
+                </td>
+                <td>
+                  <select
+                    className="select"
+                    value={p.role}
+                    disabled={p.id === currentUserId}
+                    onChange={(e) => patch(p.id, { role: e.target.value })}
+                    style={{ padding: '7px 10px', width: 'auto' }}
+                  >
+                    {ROLES.filter(([value]) => isCeo || value !== 'CEO').map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <input
+                    className="input"
+                    type="time"
+                    value={p.checkInBy || defaultCheckInBy}
+                    onChange={(e) => patch(p.id, { checkInBy: e.target.value })}
+                    style={{ padding: '7px 10px', width: 130 }}
+                  />
+                </td>
+                <td>
+                  <input
+                    className="input"
+                    type="number"
+                    min={30}
+                    max={720}
+                    step={15}
+                    value={p.minPresentMinutes === '' ? defaultMinPresentMinutes : p.minPresentMinutes}
+                    onChange={(e) => patch(p.id, { minPresentMinutes: Number(e.target.value) })}
+                    style={{ padding: '7px 10px', width: 90 }}
+                    title="Minutes worked to count as present"
+                  />
+                </td>
+                <td className="num right">
+                  <span className={`chip ${p.openTasks >= assignmentCap ? 'red' : ''}`}>
+                    {p.openTasks}
+                  </span>
+                </td>
+                <td className="right">
+                  <div className="row end" style={{ gap: 6 }}>
+                    <button className="btn btn-sm" onClick={() => openReset(p)}>
+                      <Icon.key width={13} height={13} />
+                      Password
+                    </button>
+                    <button
+                      className={`btn btn-sm ${p.active ? 'btn-danger' : ''}`}
                       disabled={p.id === currentUserId}
-                      onChange={(e) => patch(p.id, { role: e.target.value })}
-                      style={{ padding: '7px 10px', width: 'auto' }}
+                      onClick={() =>
+                        patch(
+                          p.id,
+                          { active: !p.active },
+                          p.active ? `${p.name} can no longer sign in.` : `${p.name} is back.`,
+                        )
+                      }
                     >
-                      {ROLES.filter(([value]) => isCeo || value !== 'CEO').map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      className="input"
-                      type="time"
-                      value={p.checkInBy || defaultCheckInBy}
-                      onChange={(e) => patch(p.id, { checkInBy: e.target.value })}
-                      style={{ padding: '7px 10px', width: 130 }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="input"
-                      type="number"
-                      min={30}
-                      max={720}
-                      step={15}
-                      value={p.minPresentMinutes === '' ? defaultMinPresentMinutes : p.minPresentMinutes}
-                      onChange={(e) => patch(p.id, { minPresentMinutes: Number(e.target.value) })}
-                      style={{ padding: '7px 10px', width: 90 }}
-                      title="Minutes worked to count as present"
-                    />
-                  </td>
-                  <td className="num right">
-                    <span className={`chip ${p.openTasks >= assignmentCap ? 'red' : ''}`}>
-                      {p.openTasks}
-                    </span>
-                  </td>
-                  <td className="right">
-                    <div className="row end" style={{ gap: 6 }}>
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => setEditing(isEditing ? null : p.id)}
-                      >
-                        {isEditing ? 'Done' : 'Edit'}
-                      </button>
-                      <button
-                        className={`btn btn-sm ${p.active ? 'btn-danger' : ''}`}
-                        disabled={p.id === currentUserId}
-                        onClick={() =>
-                          patch(
-                            p.id,
-                            { active: !p.active },
-                            p.active ? `${p.name} can no longer sign in.` : `${p.name} is back.`,
-                          )
-                        }
-                      >
-                        {p.active ? 'Deactivate' : 'Reactivate'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                      {p.active ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </section>
+
+      <Modal
+        open={!!resetting}
+        onClose={() => setResetting(null)}
+        title={resetting ? `Set a password for ${resetting.name}` : 'Set a password'}
+        description="They'll need this the next time they sign in. Share it with them directly — it isn't shown again after you close this."
+      >
+        {resetting && (
+          <form onSubmit={submitReset}>
+            <label className="field-label">PASSWORD</label>
+            <div className="row" style={{ gap: 8 }}>
+              <input
+                className="input mono"
+                type="text"
+                value={pw}
+                onChange={(e) => {
+                  setPw(e.target.value);
+                  setPwSaved(false);
+                }}
+                minLength={8}
+                required
+              />
+              <button
+                type="button"
+                className="btn-icon"
+                title="Generate another"
+                aria-label="Generate another"
+                onClick={() => {
+                  setPw(generatePassword());
+                  setPwSaved(false);
+                }}
+              >
+                <Icon.key width={15} height={15} />
+              </button>
+              <button
+                type="button"
+                className="btn-icon"
+                title="Copy"
+                aria-label="Copy"
+                onClick={() => navigator.clipboard.writeText(pw)}
+              >
+                <Icon.copy width={15} height={15} />
+              </button>
+            </div>
+
+            <div className="row end" style={{ marginTop: 20 }}>
+              {pwSaved ? (
+                <button type="button" className="btn" onClick={() => setResetting(null)}>
+                  Done
+                </button>
+              ) : (
+                <button className="btn btn-primary" type="submit" disabled={pw.length < 8}>
+                  Set password
+                </button>
+              )}
+            </div>
+            {pwSaved && <p className="notice-line">Saved. Copy it now and send it to {resetting.name}.</p>}
+            {pwError && <p className="error-line">{pwError}</p>}
+          </form>
+        )}
+      </Modal>
     </>
   );
 }

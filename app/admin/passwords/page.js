@@ -1,5 +1,6 @@
 import { requireAdmin } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
+import { getSettings } from '../../../lib/settings';
 import Shell from '../../../components/Shell';
 import { PageHead } from '../../../components/ui';
 import PasswordDirectory from './PasswordDirectory';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function PasswordDirectoryPage() {
   const user = await requireAdmin();
 
-  const [entries, people] = await Promise.all([
+  const [entries, people, settings] = await Promise.all([
     prisma.passwordEntry.findMany({
       include: {
         createdBy: { select: { id: true, name: true } },
@@ -22,9 +23,10 @@ export default async function PasswordDirectoryPage() {
       select: { id: true, name: true, department: true },
       orderBy: { name: 'asc' },
     }),
+    getSettings(),
   ]);
 
-  const departments = [...new Set(people.map((p) => p.department).filter(Boolean))].sort();
+  const departments = settings.departments;
 
   return (
     <Shell user={user}>

@@ -58,6 +58,7 @@ export default async function PeoplePage() {
         defaultCheckInBy={settings.defaultCheckInBy}
         defaultMinPresentMinutes={settings.minPresentMinutes}
         assignmentCap={settings.assignmentCap}
+        departments={settings.departments}
         currentUserId={user.id}
         isCeo={user.role === 'CEO'}
       />

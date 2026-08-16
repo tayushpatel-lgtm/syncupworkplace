@@ -160,15 +160,36 @@ async function main() {
 
   console.log('Holidays…');
   const year = new Date().getUTCFullYear();
-  for (const [date, name] of [
-    [`${year}-01-26`, 'Republic Day'],
-    [`${year}-08-15`, 'Independence Day'],
-    [`${year}-10-02`, 'Gandhi Jayanti'],
-    [`${year}-12-25`, 'Christmas'],
-  ]) {
+  // The real 2026 Indian gazetted holiday calendar. Islamic dates (Ramzan Id,
+  // Bakrid, Muharram) shift about 11 days earlier every Gregorian year, so
+  // this list is specific to 2026 — reseeding in a later year with the same
+  // dates would be wrong for those. Load the real list for that year from the
+  // Holidays admin page's bulk importer.
+  const HOLIDAYS_2026 = [
+    ['01-26', 'Republic Day'],
+    ['03-04', 'Holi'],
+    ['03-21', 'Ramzan Id'],
+    ['03-26', 'Rama Navami'],
+    ['03-31', 'Mahavir Jayanti'],
+    ['04-03', 'Good Friday'],
+    ['04-14', 'Ambedkar Jayanti'],
+    ['05-01', 'Buddha Purnima'],
+    ['05-28', 'Bakrid'],
+    ['06-26', 'Muharram/Ashura'],
+    ['08-15', 'Independence Day'],
+    ['08-26', 'Milad un-Nabi'],
+    ['10-02', 'Mahatma Gandhi Jayanti'],
+    ['10-20', 'Dussehra'],
+    ['11-08', 'Diwali/Deepavali'],
+    ['11-24', 'Guru Nanak Jayanti'],
+    ['12-25', 'Christmas'],
+  ];
+  const holidayKeys = new Set();
+  for (const [monthDay, name] of HOLIDAYS_2026) {
+    const date = `${year}-${monthDay}`;
     await prisma.holiday.create({ data: { date: dayDate(date), name } });
+    holidayKeys.add(date);
   }
-  const holidayKeys = new Set([`${year}-01-26`, `${year}-08-15`, `${year}-10-02`, `${year}-12-25`]);
 
   console.log('Leave balances…');
   await prisma.leaveBalance.createMany({

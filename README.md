@@ -113,7 +113,17 @@ Everything on `/admin/settings` is enforced server-side, not just in the UI.
 | The working week | Attendance denominators, calendar shading, leave day counts, carry-over |
 | Default check-in by | The late threshold, unless a person has their own time |
 | Idle cut-off | How long silence runs before time stops counting as work |
+| Minimum hours to count as present | Checked in isn't enough — under this and the day reads as short, not present |
 | Onboarding checklist | Gates the whole app while enforced and unfinished |
+| Departments | What People's dropdowns, Apps' scoping and the password vault's sharing pick from |
+
+People are added, deactivated, and have their password reset — including
+generating one — from `/admin/people`. Only the CEO can touch another CEO's
+role, active state, or password; any admin can manage everyone else.
+
+Holidays go in one at a time on `/holidays`, or a whole year at once by
+pasting a calendar list (date, weekday, name, type — only the date and name
+are kept) into the bulk importer there.
 
 ## Slack
 

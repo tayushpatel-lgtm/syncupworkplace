@@ -55,6 +55,7 @@ export default function SettingsForm({
   const [tokenName, setTokenName] = useState('');
   const [freshToken, setFreshToken] = useState('');
   const [app, setApp] = useState({ name: '', description: '', url: '', icon: '◆', department: '' });
+  const [deptName, setDeptName] = useState('');
 
   const set = (patch) => setForm((cur) => ({ ...cur, ...patch }));
 
@@ -291,6 +292,50 @@ export default function SettingsForm({
           >
             <Icon.plus width={15} height={15} />
             Add step
+          </button>
+        </div>
+      </Card>
+
+      <Card
+        glyph="users"
+        title="Departments"
+        description="The list People, Apps and the password vault pick from when scoping something to one department."
+      >
+        <div className="row wrap" style={{ gap: 8, marginBottom: departments.length ? 18 : 0 }}>
+          {departments.length === 0 && <p className="empty" style={{ padding: 0 }}>None added yet.</p>}
+          {departments.map((d) => (
+            <span key={d} className="chip">
+              {d}
+              <button
+                className="btn-icon"
+                style={{ padding: 2, marginLeft: 2 }}
+                title={`Remove ${d}`}
+                aria-label={`Remove ${d}`}
+                onClick={() => post('/api/departments', { name: d }, `${d} removed.`, 'DELETE')}
+              >
+                <Icon.close width={11} height={11} />
+              </button>
+            </span>
+          ))}
+        </div>
+
+        <div className="row">
+          <input
+            className="input"
+            placeholder="Engineering"
+            value={deptName}
+            onChange={(e) => setDeptName(e.target.value)}
+          />
+          <button
+            className="btn"
+            disabled={!deptName.trim()}
+            onClick={async () => {
+              const ok = await post('/api/departments', { name: deptName.trim() }, 'Department added.');
+              if (ok) setDeptName('');
+            }}
+          >
+            <Icon.plus width={15} height={15} />
+            Add department
           </button>
         </div>
       </Card>

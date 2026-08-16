@@ -106,6 +106,9 @@ model Settings {
   workingDays      Int[]  @default([1, 2, 3, 4, 5, 6])
   defaultCheckInBy String @default("09:30")
 
+  // The managed department list — what People's dropdowns and Apps' scoping pick from.
+  departments String[] @default([])
+
   // Onboarding
   onboardingEnforced Boolean @default(true)
 

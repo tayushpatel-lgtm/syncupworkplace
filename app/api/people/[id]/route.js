@@ -58,6 +58,9 @@ export async function PATCH(request, { params }) {
   }
 
   if (body.password !== undefined) {
+    if (target.role === 'CEO' && user.role !== 'CEO') {
+      return Response.json({ error: 'Only the CEO can reset that password.' }, { status: 403 });
+    }
     const password = String(body.password);
     if (password.length < 8) {
       return Response.json({ error: 'A password needs at least 8 characters.' }, { status: 400 });
