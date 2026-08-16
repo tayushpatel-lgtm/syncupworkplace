@@ -85,11 +85,25 @@ export default function SettingsForm({
   async function post(url, body, message, method = 'POST') {
     setError('');
     setNotice('');
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    // Never let a button spin forever — the slowest thing on this page (the
+    // Sheets sync) is itself capped server-side at 60s, so anything past that
+    // is a genuine hang, not real work still happening.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 65_000);
+    let res;
+    try {
+      res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      setError(err.name === 'AbortError' ? 'That took too long and was cancelled. Try again.' : 'Could not reach the server.');
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setError(data.error || 'That did not save.');

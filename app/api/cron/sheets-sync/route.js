@@ -2,6 +2,10 @@ import { currentUser, isAdmin } from '../../../../lib/auth';
 import { syncAllToSheets } from '../../../../lib/google-sheets';
 import { safeEqual } from '../../../../lib/tokens';
 
+// The default serverless limit (10s on Vercel's Hobby plan) isn't always
+// enough for a dozen-plus Sheets API round trips, even run in parallel.
+export const maxDuration = 60;
+
 export async function GET(request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
