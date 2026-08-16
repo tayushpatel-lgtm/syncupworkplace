@@ -161,7 +161,15 @@ Channel events, each its own toggle: check-in, check-out, and an end-of-day
 summary — who was present, who wasn't, which task-linked plan points never
 got ticked.
 
-Personal DMs, gated by a master switch plus one toggle each:
+Personal DMs, gated by a master switch plus one toggle each. Four mirror a
+channel event straight to the one person it's actually about — easy to miss
+in a shared channel everyone else is also posting into:
+- **Check-in** / **Check-out** — the same post that went to the channel.
+- **Task status changes** — sent to whoever the task is assigned to.
+- **Deadline reminders** — just their own due/overdue items, not the whole
+  company's shared list.
+
+Four more that only ever exist as a DM, nothing posted to the channel:
 - **Task assigned to you** — the moment it lands on them.
 - **Marked absent** — end of day, on a working day, with no check-in recorded.
   Sent alongside the channel summary.
@@ -169,6 +177,9 @@ Personal DMs, gated by a master switch plus one toggle each:
   idle cut-off (device asleep or off — see [How the time is
   counted](#how-the-time-is-counted); a tab or window switch never triggers this).
 - **Today's plan** — a digest of their plan, sent right after check-in.
+
+The end-of-day summary stays channel-only — it's about the whole team at
+once, not one person, so there's no single "you" to mirror it to.
 
 DMs need a Slack account resolved for the person, which happens one of two
 ways: automatically the first time, via `users.lookupByEmail`; or up front,

@@ -1,7 +1,7 @@
 import { prisma } from '../../../../lib/db';
 import { currentUser, isAdmin } from '../../../../lib/auth';
 import { getSettings } from '../../../../lib/settings';
-import { postToSlack, deadlineMessage } from '../../../../lib/slack';
+import { postToSlack, deadlineMessage, sendDirectMessage, deadlineDm } from '../../../../lib/slack';
 import { dayKey, dayDate, shiftDay } from '../../../../lib/dates';
 import { safeEqual } from '../../../../lib/tokens';
 
@@ -21,19 +21,31 @@ async function runPass() {
       dueDate: { not: null, lte: new Date(`${tomorrow}T00:00:00.000Z`) },
       OR: [{ lastRemindedOn: null }, { lastRemindedOn: { lt: dayDate(today) } }],
     },
-    include: { assignee: { select: { name: true } } },
+    include: { assignee: { select: { id: true, name: true, email: true, slackUserId: true } } },
     orderBy: { dueDate: 'asc' },
   });
 
   if (tasks.length === 0) return { sent: false, reason: 'nothing is due', reminded: 0 };
 
-  const lines = tasks.map((task) => {
+  const when = (task) => {
     const due = task.dueDate.toISOString().slice(0, 10);
-    const when = due === today ? 'due today' : due === tomorrow ? 'due tomorrow' : `late since ${due}`;
-    return `${task.assignee.name} — ${task.title} (${when})`;
-  });
+    return due === today ? 'due today' : due === tomorrow ? 'due tomorrow' : `late since ${due}`;
+  };
 
+  const lines = tasks.map((task) => `${task.assignee.name} — ${task.title} (${when(task)})`);
   const result = await postToSlack('deadline', deadlineMessage(lines));
+
+  // Each person also gets just their own items — the channel line is easy to
+  // miss in a shared feed everyone else is also posting into.
+  const byAssignee = new Map();
+  for (const task of tasks) {
+    const entry = byAssignee.get(task.assigneeId) || { user: task.assignee, lines: [] };
+    entry.lines.push(`${task.title} (${when(task)})`);
+    byAssignee.set(task.assigneeId, entry);
+  }
+  for (const { user, lines: personalLines } of byAssignee.values()) {
+    await sendDirectMessage('deadline', user, deadlineDm(personalLines));
+  }
 
   // Only mark them reminded if Slack actually took the message, so a failed pass
   // retries tomorrow instead of going quiet.

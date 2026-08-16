@@ -156,6 +156,14 @@ model Settings {
   slackDmOnInactive Boolean @default(false)
   /// Today's plan, sent right after check-in.
   slackDmOnDailyPlan Boolean @default(false)
+  /// Mirrors the channel check-in post to the person themselves.
+  slackDmOnCheckin Boolean @default(true)
+  /// Mirrors the channel check-out post to the person themselves.
+  slackDmOnCheckout Boolean @default(true)
+  /// Mirrors a status move to whoever the task is assigned to.
+  slackDmOnStatus Boolean @default(true)
+  /// A personal list of just their own due/overdue tasks, instead of only the shared channel line.
+  slackDmOnDeadline Boolean @default(true)
 
   // Google Sheets backup
   sheetsEnabled Boolean @default(false)

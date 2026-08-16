@@ -627,7 +627,7 @@ export default function SettingsForm({
       <Card
         glyph="slack"
         title="Slack bot — channel + personal DMs"
-        description="A second, independent path that also DMs people directly: check-in, check-out, an end-of-day summary in the channel, plus a personal DM the moment a task lands on someone."
+        description="A second, independent path that also DMs people directly. Whatever's about one person specifically — check-in, check-out, a task landing on them, its status moving, their own deadlines — can mirror into their personal DM, not just the shared channel."
         action={
           <>
             <span className={`chip ${botTokenSet ? 'green' : ''}`}>
@@ -722,6 +722,34 @@ export default function SettingsForm({
               disabled={!form.slackBotEnabled || !form.slackDmEnabled}
               title="Task assigned to you"
               detail="The moment a task lands on someone."
+            />
+            <Check
+              checked={form.slackDmOnCheckin}
+              onChange={(v) => set({ slackDmOnCheckin: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Check-in (mirrors the channel)"
+              detail="The same check-in post, sent to them personally too — easy to miss in a busy shared channel."
+            />
+            <Check
+              checked={form.slackDmOnCheckout}
+              onChange={(v) => set({ slackDmOnCheckout: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Check-out (mirrors the channel)"
+              detail="The same check-out post, sent to them personally too."
+            />
+            <Check
+              checked={form.slackDmOnStatus}
+              onChange={(v) => set({ slackDmOnStatus: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Task status changes (mirrors the channel)"
+              detail="Sent to whoever the task is assigned to, whenever it moves."
+            />
+            <Check
+              checked={form.slackDmOnDeadline}
+              onChange={(v) => set({ slackDmOnDeadline: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Deadline reminders (personalised)"
+              detail="Just their own due/overdue items, not the whole company's shared list."
             />
             <Check
               checked={form.slackDmOnAbsent}

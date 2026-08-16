@@ -7,6 +7,10 @@ import {
   markedAbsentDm,
   checkedOutInactiveDm,
   taskForTodayDm,
+  checkInDm,
+  checkOutDm,
+  statusChangeDm,
+  deadlineDm,
 } from '../../lib/slack.js';
 
 describe('Slack bot message builders', () => {
@@ -68,5 +72,34 @@ describe('Slack bot message builders', () => {
 
     const empty = taskForTodayDm([]);
     expect(empty.blocks[0].text.text).toContain('Nothing on it yet');
+  });
+
+  it('mirrors a late check-in personally, the same way as the channel version', () => {
+    const onTime = checkInDm(false);
+    expect(onTime.text).not.toMatch(/late/);
+    const late = checkInDm(true);
+    expect(late.text).toMatch(/late/);
+    expect(late.blocks[0].elements[0].text).toContain('You checked in');
+  });
+
+  it('reports hours worked in the personal check-out DM', () => {
+    const dm = checkOutDm(150);
+    expect(dm.blocks[0].elements[0].text).toContain('You checked out');
+    expect(dm.blocks[0].elements[0].text).toContain('2.5h');
+  });
+
+  it('frames a status-change DM around "your task", not a named assignee', () => {
+    const dm = statusChangeDm({ title: 'Ship the report' }, 'PENDING', 'PROGRESS');
+    expect(dm.blocks[0].elements[0].text).toContain('Your task');
+    expect(dm.blocks[0].elements[0].text).toContain('Ship the report');
+    expect(dm.blocks[0].elements[0].text).toContain('pending → *in progress*');
+  });
+
+  it('lists only the given lines in a personal deadline DM', () => {
+    const dm = deadlineDm(['Ship the report (due today)', 'Review PRs (late since 2026-08-10)']);
+    expect(dm.text).toContain('2 of your tasks');
+    expect(dm.blocks[0].text.text).toContain('Your deadlines');
+    expect(dm.blocks[0].text.text).toContain('• Ship the report (due today)');
+    expect(dm.blocks[0].text.text).toContain('• Review PRs (late since 2026-08-10)');
   });
 });

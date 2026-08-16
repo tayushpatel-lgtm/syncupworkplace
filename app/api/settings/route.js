@@ -71,6 +71,10 @@ export async function POST(request) {
     'slackDmOnAbsent',
     'slackDmOnInactive',
     'slackDmOnDailyPlan',
+    'slackDmOnCheckin',
+    'slackDmOnCheckout',
+    'slackDmOnStatus',
+    'slackDmOnDeadline',
     'sheetsEnabled',
   ]) {
     if (body[flag] !== undefined) data[flag] = !!body[flag];

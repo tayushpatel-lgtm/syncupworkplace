@@ -1,7 +1,7 @@
 import { prisma } from '../../../../lib/db';
 import { apiUser, isAdmin } from '../../../../lib/auth';
 import { dayKey, dayDate } from '../../../../lib/dates';
-import { postToSlack, statusChangeMessage } from '../../../../lib/slack';
+import { postToSlack, statusChangeMessage, sendDirectMessage, statusChangeDm } from '../../../../lib/slack';
 
 const STATUSES = ['PENDING', 'PROGRESS', 'COMPLETED', 'BLOCKED'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
@@ -13,7 +13,7 @@ export async function PATCH(request, { params }) {
   const { id } = await params;
   const task = await prisma.task.findUnique({
     where: { id },
-    include: { assignee: { select: { id: true, name: true } } },
+    include: { assignee: { select: { id: true, name: true, email: true, slackUserId: true } } },
   });
   if (!task) return Response.json({ error: 'That task is gone.' }, { status: 404 });
 
@@ -61,6 +61,7 @@ export async function PATCH(request, { params }) {
 
     if (task.status !== data.status) {
       await postToSlack('status', statusChangeMessage(updated, task.assignee, task.status, data.status));
+      await sendDirectMessage('status', task.assignee, statusChangeDm(updated, task.status, data.status));
     }
   }
 

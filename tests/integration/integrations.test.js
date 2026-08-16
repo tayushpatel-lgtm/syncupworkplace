@@ -65,7 +65,17 @@ describe('Slack bot and Sheets settings', () => {
     const res = await api('/api/settings', {
       method: 'POST',
       cookie: ceoCookie,
-      body: { slackDmEnabled: true, slackDmOnAssign: false, slackDmOnAbsent: true, slackDmOnInactive: true, slackDmOnDailyPlan: true },
+      body: {
+        slackDmEnabled: true,
+        slackDmOnAssign: false,
+        slackDmOnAbsent: true,
+        slackDmOnInactive: true,
+        slackDmOnDailyPlan: true,
+        slackDmOnCheckin: false,
+        slackDmOnCheckout: false,
+        slackDmOnStatus: false,
+        slackDmOnDeadline: false,
+      },
     });
     expect(res.status).toBe(200);
 
@@ -74,12 +84,26 @@ describe('Slack bot and Sheets settings', () => {
     expect(settings.slackDmOnAbsent).toBe(true);
     expect(settings.slackDmOnInactive).toBe(true);
     expect(settings.slackDmOnDailyPlan).toBe(true);
+    expect(settings.slackDmOnCheckin).toBe(false);
+    expect(settings.slackDmOnCheckout).toBe(false);
+    expect(settings.slackDmOnStatus).toBe(false);
+    expect(settings.slackDmOnDeadline).toBe(false);
 
     // restore fixture defaults for later files
     await api('/api/settings', {
       method: 'POST',
       cookie: ceoCookie,
-      body: { slackDmEnabled: false, slackDmOnAssign: true, slackDmOnAbsent: false, slackDmOnInactive: false, slackDmOnDailyPlan: false },
+      body: {
+        slackDmEnabled: false,
+        slackDmOnAssign: true,
+        slackDmOnAbsent: false,
+        slackDmOnInactive: false,
+        slackDmOnDailyPlan: false,
+        slackDmOnCheckin: true,
+        slackDmOnCheckout: true,
+        slackDmOnStatus: true,
+        slackDmOnDeadline: true,
+      },
     });
   });
 });
