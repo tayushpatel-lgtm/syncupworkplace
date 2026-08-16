@@ -152,12 +152,11 @@ async function main() {
 
   // Everyone except one newcomer has already worked through the checklist, so the
   // gate is visible without locking the whole company out of the demo.
-  for (const user of users) {
-    if (user.name === 'Zoya') continue;
-    for (const step of stepRows) {
-      await prisma.onboardingProgress.create({ data: { userId: user.id, stepId: step.id } });
-    }
-  }
+  await prisma.onboardingProgress.createMany({
+    data: users
+      .filter((user) => user.name !== 'Zoya')
+      .flatMap((user) => stepRows.map((step) => ({ userId: user.id, stepId: step.id }))),
+  });
 
   console.log('Holidays…');
   const year = new Date().getUTCFullYear();
@@ -172,19 +171,17 @@ async function main() {
   const holidayKeys = new Set([`${year}-01-26`, `${year}-08-15`, `${year}-10-02`, `${year}-12-25`]);
 
   console.log('Leave balances…');
-  for (const user of users) {
-    await prisma.leaveBalance.create({
-      data: {
-        userId: user.id,
-        year,
-        sickTotal: 12,
-        plannedTotal: 12,
-        carried: 7,
-        sickUsed: 0,
-        plannedUsed: 0,
-      },
-    });
-  }
+  await prisma.leaveBalance.createMany({
+    data: users.map((user) => ({
+      userId: user.id,
+      year,
+      sickTotal: 12,
+      plannedTotal: 12,
+      carried: 7,
+      sickUsed: 0,
+      plannedUsed: 0,
+    })),
+  });
 
   console.log('Tasks…');
   const tasks = [];
@@ -247,9 +244,22 @@ async function main() {
   let sessionCount = 0;
   let reportCount = 0;
 
+  // Every day's writes go in as one batch per table instead of one call per
+  // person — a local database shrugs off thousands of small round trips, but a
+  // hosted one pays real network latency for each, so this is the difference
+  // between a few seconds and several minutes.
+  const workingKeys = [];
   for (let offset = -HISTORY_DAYS; offset <= -1; offset += 1) {
     const key = dayKey(offset);
-    if (!WORKING_DAYS.includes(weekday(key)) || holidayKeys.has(key)) continue;
+    if (WORKING_DAYS.includes(weekday(key)) && !holidayKeys.has(key)) workingKeys.push(key);
+  }
+
+  for (let i = 0; i < workingKeys.length; i += 1) {
+    const key = workingKeys[i];
+    const attendanceRows = [];
+    const sessionRows = [];
+    const planRows = [];
+    const reportRows = [];
 
     for (const user of users) {
       // Not everyone is in every day.
@@ -260,15 +270,13 @@ async function main() {
       const startMinute = late ? 15 + Math.floor(rand() * 40) : 40 + Math.floor(rand() * 18);
       const checkInAt = at(key, startHour, startMinute);
 
-      await prisma.attendance.create({
-        data: {
-          userId: user.id,
-          date: dayDate(key),
-          checkInAt,
-          checkInBy: user.checkInBy || '09:30',
-          late,
-          status: 'PRESENT',
-        },
+      attendanceRows.push({
+        userId: user.id,
+        date: dayDate(key),
+        checkInAt,
+        checkInBy: user.checkInBy || '09:30',
+        late,
+        status: 'PRESENT',
       });
 
       // A morning block, a break, an afternoon block — and sometimes a stretch
@@ -277,21 +285,17 @@ async function main() {
       const breakEnd = new Date(morningEnd.getTime() + (25 + rand() * 35) * 60000);
       const afternoonEnd = new Date(breakEnd.getTime() + (160 + rand() * 110) * 60000);
 
-      await prisma.workSession.createMany({
-        data: [
-          { userId: user.id, date: dayDate(key), kind: 'WORK', startedAt: checkInAt, endedAt: morningEnd, lastBeatAt: morningEnd },
-          { userId: user.id, date: dayDate(key), kind: 'BREAK', startedAt: morningEnd, endedAt: breakEnd, lastBeatAt: breakEnd },
-          { userId: user.id, date: dayDate(key), kind: 'WORK', startedAt: breakEnd, endedAt: afternoonEnd, lastBeatAt: afternoonEnd },
-        ],
-      });
+      sessionRows.push(
+        { userId: user.id, date: dayDate(key), kind: 'WORK', startedAt: checkInAt, endedAt: morningEnd, lastBeatAt: morningEnd },
+        { userId: user.id, date: dayDate(key), kind: 'BREAK', startedAt: morningEnd, endedAt: breakEnd, lastBeatAt: breakEnd },
+        { userId: user.id, date: dayDate(key), kind: 'WORK', startedAt: breakEnd, endedAt: afternoonEnd, lastBeatAt: afternoonEnd },
+      );
       sessionCount += 3;
 
       if (rand() > 0.55) {
         const idleStart = afternoonEnd;
         const idleEnd = new Date(idleStart.getTime() + (20 + rand() * 70) * 60000);
-        await prisma.workSession.create({
-          data: { userId: user.id, date: dayDate(key), kind: 'IDLE', startedAt: idleStart, endedAt: idleEnd },
-        });
+        sessionRows.push({ userId: user.id, date: dayDate(key), kind: 'IDLE', startedAt: idleStart, endedAt: idleEnd });
         sessionCount += 1;
       }
 
@@ -301,16 +305,14 @@ async function main() {
       for (let p = 0; p < pointCount; p += 1) {
         const isDone = rand() > 0.25;
         if (isDone) done += 1;
-        await prisma.planPoint.create({
-          data: {
-            userId: user.id,
-            date: dayDate(key),
-            title: pick(PLAN_EXTRAS),
-            order: p + 1,
-            done: isDone,
-            doneAt: isDone ? afternoonEnd : null,
-            originDate: dayDate(key),
-          },
+        planRows.push({
+          userId: user.id,
+          date: dayDate(key),
+          title: pick(PLAN_EXTRAS),
+          order: p + 1,
+          done: isDone,
+          doneAt: isDone ? afternoonEnd : null,
+          originDate: dayDate(key),
         });
       }
 
@@ -318,23 +320,30 @@ async function main() {
         const workedMinutes = Math.round(
           (morningEnd - checkInAt + (afternoonEnd - breakEnd)) / 60000,
         );
-        await prisma.dailyReport.create({
-          data: {
-            userId: user.id,
-            date: dayDate(key),
-            summary: pick(REPORT_LINES),
-            submittedAt: afternoonEnd,
-            minutesWorked: workedMinutes,
-            minutesBreak: Math.round((breakEnd - morningEnd) / 60000),
-            minutesIdle: 0,
-            pointsDone: done,
-            pointsTotal: pointCount,
-            tasksCompleted: rand() > 0.7 ? 1 : 0,
-          },
+        reportRows.push({
+          userId: user.id,
+          date: dayDate(key),
+          summary: pick(REPORT_LINES),
+          submittedAt: afternoonEnd,
+          minutesWorked: workedMinutes,
+          minutesBreak: Math.round((breakEnd - morningEnd) / 60000),
+          minutesIdle: 0,
+          pointsDone: done,
+          pointsTotal: pointCount,
+          tasksCompleted: rand() > 0.7 ? 1 : 0,
         });
         reportCount += 1;
       }
     }
+
+    await Promise.all([
+      attendanceRows.length && prisma.attendance.createMany({ data: attendanceRows }),
+      sessionRows.length && prisma.workSession.createMany({ data: sessionRows }),
+      planRows.length && prisma.planPoint.createMany({ data: planRows }),
+      reportRows.length && prisma.dailyReport.createMany({ data: reportRows }),
+    ]);
+
+    console.log(`  day ${i + 1}/${workingKeys.length} — ${key} (${attendanceRows.length} people)`);
   }
 
   console.log('');
