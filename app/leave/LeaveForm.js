@@ -102,6 +102,7 @@ export default function LeaveForm() {
             type="submit"
             disabled={busy || !form.startDate || !form.endDate}
           >
+            {busy && <Icon.spinner width={14} height={14} />}
             {busy ? 'Filing…' : 'File the request'}
           </button>
         </div>

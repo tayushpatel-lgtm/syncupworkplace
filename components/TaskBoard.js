@@ -36,7 +36,7 @@ function dueLabel(dueDate, today) {
   })}`;
 }
 
-function TaskCard({ task, today, onDragStart, dragging, showAssignee, onDelete }) {
+function TaskCard({ task, today, onDragStart, dragging, showAssignee, onDelete, deleting }) {
   return (
     <article
       className={`task-card ${task.priority.toLowerCase()} ${dragging ? 'dragging' : ''}`}
@@ -78,12 +78,13 @@ function TaskCard({ task, today, onDragStart, dragging, showAssignee, onDelete }
             style={{ marginLeft: 'auto' }}
             title="Delete task"
             aria-label="Delete task"
+            disabled={deleting}
             onClick={(e) => {
               e.preventDefault();
               onDelete(task.id);
             }}
           >
-            <Icon.trash width={14} height={14} />
+            {deleting ? <Icon.spinner width={14} height={14} /> : <Icon.trash width={14} height={14} />}
           </button>
         )}
       </footer>
@@ -101,6 +102,7 @@ export default function TaskBoard({ tasks, today, showAssignee = false, canDelet
   const [dragging, setDragging] = useState(null);
   const [over, setOver] = useState(null);
   const [error, setError] = useState('');
+  const [removingId, setRemovingId] = useState('');
 
   const grouped = useMemo(() => {
     const out = Object.fromEntries(LANES.map(([key]) => [key, []]));
@@ -124,8 +126,10 @@ export default function TaskBoard({ tasks, today, showAssignee = false, canDelet
   }
 
   async function remove(taskId) {
+    setRemovingId(taskId);
     const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
     if (res.ok) router.refresh();
+    setRemovingId('');
   }
 
   return (
@@ -165,6 +169,7 @@ export default function TaskBoard({ tasks, today, showAssignee = false, canDelet
                   onDragStart={setDragging}
                   showAssignee={showAssignee}
                   onDelete={canDelete ? remove : null}
+                  deleting={removingId === task.id}
                 />
               ))}
             </div>

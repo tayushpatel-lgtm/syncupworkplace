@@ -411,6 +411,45 @@ a {
   cursor: not-allowed;
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* A full-page transition indicator — shown by loading.js while a route segment
+   is server-rendering, and briefly on first paint. Delayed so a fast
+   navigation never flashes it. */
+.route-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: var(--ink);
+  z-index: 999;
+  animation: route-loading-in 0.9s ease-out forwards;
+  animation-delay: 120ms;
+  opacity: 0;
+  transform-origin: left;
+}
+
+@keyframes route-loading-in {
+  0% {
+    opacity: 1;
+    transform: scaleX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(0.85);
+  }
+}
+
 .btn-sm {
   padding: 7px 12px;
   font-size: 13px;

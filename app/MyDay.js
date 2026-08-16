@@ -132,8 +132,8 @@ export default function MyDay(props) {
               onClick={() => call('/api/day/check-in', {}, 'in')}
               disabled={busy === 'in'}
             >
-              <Icon.play width={15} height={15} />
-              Work anyway
+              {busy === 'in' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
+              {busy === 'in' ? 'Working…' : 'Work anyway'}
             </button>
           </div>
         </Card>
@@ -158,7 +158,7 @@ export default function MyDay(props) {
               onClick={() => call('/api/day/check-in', {}, 'in')}
               disabled={busy === 'in'}
             >
-              <Icon.play width={15} height={15} />
+              {busy === 'in' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
               {busy === 'in' ? 'Checking in…' : 'Check in'}
             </button>
             <span className="muted" style={{ fontSize: 13.5 }}>
@@ -195,7 +195,7 @@ export default function MyDay(props) {
               autoFocus
             />
             <button className="btn btn-primary" type="submit" disabled={!draft.trim() || busy === 'add'}>
-              <Icon.plus width={15} height={15} />
+              {busy === 'add' ? <Icon.spinner width={15} height={15} /> : <Icon.plus width={15} height={15} />}
               Add
             </button>
           </form>
@@ -242,7 +242,7 @@ export default function MyDay(props) {
               onClick={() => call('/api/day/session', { kind: 'BREAK' }, 'break')}
               disabled={busy === 'break'}
             >
-              <Icon.pause width={15} height={15} />
+              {busy === 'break' ? <Icon.spinner width={15} height={15} /> : <Icon.pause width={15} height={15} />}
               Take a break
             </button>
           ) : (
@@ -251,7 +251,7 @@ export default function MyDay(props) {
               onClick={() => call('/api/day/session', { kind: 'WORK' }, 'work')}
               disabled={busy === 'work'}
             >
-              <Icon.play width={15} height={15} />
+              {busy === 'work' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
               {running ? 'Back to work' : checkedOut ? 'Start work again' : 'Resume work'}
             </button>
           )}
@@ -290,6 +290,7 @@ export default function MyDay(props) {
                 <input
                   type="checkbox"
                   checked={point.done}
+                  disabled={busy === point.id}
                   onChange={(e) =>
                     call('/api/day/plan', { action: 'toggle', id: point.id, done: e.target.checked }, point.id)
                   }
@@ -312,9 +313,10 @@ export default function MyDay(props) {
                 className="btn-icon danger"
                 title="Remove for today"
                 aria-label="Remove for today"
+                disabled={busy === point.id}
                 onClick={() => call('/api/day/plan', { action: 'dismiss', id: point.id }, point.id)}
               >
-                <Icon.trash width={15} height={15} />
+                {busy === point.id ? <Icon.spinner width={15} height={15} /> : <Icon.trash width={15} height={15} />}
               </button>
             </div>
           ))}
@@ -329,7 +331,7 @@ export default function MyDay(props) {
             onChange={(e) => setDraft(e.target.value)}
           />
           <button className="btn" type="submit" disabled={!draft.trim() || busy === 'add'}>
-            <Icon.plus width={15} height={15} />
+            {busy === 'add' ? <Icon.spinner width={15} height={15} /> : <Icon.plus width={15} height={15} />}
             Add
           </button>
         </form>
@@ -371,7 +373,8 @@ export default function MyDay(props) {
                 onClick={() => call('/api/day/report', { summary }, 'report')}
                 disabled={!summary.trim() || busy === 'report'}
               >
-                Update the report
+                {busy === 'report' && <Icon.spinner width={14} height={14} />}
+                {busy === 'report' ? 'Updating…' : 'Update the report'}
               </button>
             </div>
           </>
@@ -398,8 +401,8 @@ export default function MyDay(props) {
                 }}
                 disabled={(reportRequired && !summary.trim()) || busy === 'report'}
               >
-                <Icon.check width={15} height={15} />
-                File and end the day
+                {busy === 'report' ? <Icon.spinner width={15} height={15} /> : <Icon.check width={15} height={15} />}
+                {busy === 'report' ? 'Filing…' : 'File and end the day'}
               </button>
             </div>
           </>

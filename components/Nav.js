@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Icon } from './Icons';
@@ -51,8 +52,10 @@ export default function Nav({ user, pendingLeave = 0 }) {
   const pathname = usePathname();
   const router = useRouter();
   const admin = user.role === 'ADMIN' || user.role === 'CEO';
+  const [signingOut, setSigningOut] = useState(false);
 
   async function signOut() {
+    setSigningOut(true);
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
     router.refresh();
@@ -92,8 +95,14 @@ export default function Nav({ user, pendingLeave = 0 }) {
           <b>{user.name}</b>
           <small>{user.title || user.role.toLowerCase()}</small>
         </div>
-        <button className="sign-out" onClick={signOut} title="Sign out" aria-label="Sign out">
-          <Icon.exit />
+        <button
+          className="sign-out"
+          onClick={signOut}
+          disabled={signingOut}
+          title="Sign out"
+          aria-label="Sign out"
+        >
+          {signingOut ? <Icon.spinner width={18} height={18} /> : <Icon.exit />}
         </button>
       </div>
     </nav>

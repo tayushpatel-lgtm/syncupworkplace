@@ -129,6 +129,7 @@ export default function AssignTaskButton({ people, currentUserId }) {
               Cancel
             </button>
             <button className="btn btn-primary" type="submit" disabled={busy || !form.title.trim()}>
+              {busy && <Icon.spinner width={14} height={14} />}
               {busy ? 'Assigning…' : 'Assign it'}
             </button>
           </div>

@@ -94,6 +94,7 @@ export default function OnboardingChecklist({ name, steps, doneIds, slackUserId 
                         disabled={!slackInput.trim() || slackSaving}
                         onClick={() => saveSlackId(step.id)}
                       >
+                        {slackSaving && <Icon.spinner width={13} height={13} />}
                         {checked ? 'Update' : 'Save'}
                       </button>
                     </div>
@@ -128,9 +129,12 @@ export default function OnboardingChecklist({ name, steps, doneIds, slackUserId 
         </div>
 
         <button className="btn btn-primary" onClick={enter} disabled={remaining > 0 || busy}>
+          {busy && <Icon.spinner width={14} height={14} />}
           {remaining > 0
             ? `${remaining} item${remaining === 1 ? '' : 's'} left`
-            : 'Enter Syncup'}
+            : busy
+              ? 'Entering…'
+              : 'Enter Syncup'}
         </button>
       </div>
     </div>

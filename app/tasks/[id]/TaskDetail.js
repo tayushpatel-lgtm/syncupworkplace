@@ -131,10 +131,11 @@ export default function TaskDetail({ task, attachments, canDelete }) {
             <button
               key={value}
               className={`chip ${task.status === value ? 'solid' : ''}`}
-              style={{ cursor: 'pointer', border: 'none', padding: '9px 16px', fontSize: 14 }}
+              style={{ cursor: 'pointer', border: 'none', padding: '9px 16px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}
               disabled={busy === `stage-${value}`}
               onClick={() => patch({ status: value }, `stage-${value}`)}
             >
+              {busy === `stage-${value}` && <Icon.spinner width={12} height={12} />}
               {label}
             </button>
           ))}
@@ -203,6 +204,7 @@ export default function TaskDetail({ task, attachments, canDelete }) {
             </div>
             <div className="row end">
               <button className="btn btn-primary" onClick={saveDetails} disabled={busy === 'save'}>
+                {busy === 'save' && <Icon.spinner width={14} height={14} />}
                 {busy === 'save' ? 'Saving…' : 'Save'}
               </button>
             </div>
@@ -224,8 +226,8 @@ export default function TaskDetail({ task, attachments, canDelete }) {
               onChange={(e) => upload(e.target.files)}
             />
             <button className="btn btn-sm" onClick={() => fileRef.current?.click()} disabled={!!busy}>
-              <Icon.plus width={14} height={14} />
-              Upload
+              {busy.startsWith('upload-') ? <Icon.spinner width={14} height={14} /> : <Icon.plus width={14} height={14} />}
+              {busy.startsWith('upload-') ? 'Uploading…' : 'Upload'}
             </button>
           </>
         }
@@ -267,7 +269,11 @@ export default function TaskDetail({ task, attachments, canDelete }) {
                   disabled={busy === `remove-${a.id}`}
                   aria-label="Remove"
                 >
-                  <Icon.trash width={13} height={13} />
+                  {busy === `remove-${a.id}` ? (
+                    <Icon.spinner width={13} height={13} />
+                  ) : (
+                    <Icon.trash width={13} height={13} />
+                  )}
                 </button>
               </div>
             ))}
@@ -292,7 +298,11 @@ export default function TaskDetail({ task, attachments, canDelete }) {
                   disabled={busy === `remove-${a.id}`}
                   aria-label="Remove"
                 >
-                  <Icon.trash width={15} height={15} />
+                  {busy === `remove-${a.id}` ? (
+                    <Icon.spinner width={15} height={15} />
+                  ) : (
+                    <Icon.trash width={15} height={15} />
+                  )}
                 </button>
               </div>
             ))}
@@ -303,6 +313,7 @@ export default function TaskDetail({ task, attachments, canDelete }) {
       {canDelete && (
         <Card glyph="trash" title="Delete this task" description="Removes it everywhere — the board, the plan, everything attached.">
           <button className="btn btn-danger" onClick={removeTask} disabled={busy === 'delete'}>
+            {busy === 'delete' && <Icon.spinner width={14} height={14} />}
             {busy === 'delete' ? 'Deleting…' : 'Delete task'}
           </button>
         </Card>

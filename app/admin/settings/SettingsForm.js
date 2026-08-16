@@ -61,8 +61,19 @@ export default function SettingsForm({
   const [freshToken, setFreshToken] = useState('');
   const [app, setApp] = useState({ name: '', description: '', url: '', icon: '◆', department: '' });
   const [deptName, setDeptName] = useState('');
+  const [actionBusy, setActionBusy] = useState('');
 
   const set = (patch) => setForm((cur) => ({ ...cur, ...patch }));
+
+  /** Runs one action under a named busy key, so its button (and only its button) shows a spinner. */
+  async function withBusy(key, fn) {
+    setActionBusy(key);
+    try {
+      return await fn();
+    } finally {
+      setActionBusy('');
+    }
+  }
 
   function toggleDay(day) {
     const next = form.workingDays.includes(day)
@@ -115,7 +126,7 @@ export default function SettingsForm({
     <>
       <PageHead title="Settings" subtitle="How the company's rules are enforced, and where the noise goes.">
         <button className="btn btn-primary" onClick={save} disabled={saving}>
-          <Icon.check width={15} height={15} />
+          {saving ? <Icon.spinner width={15} height={15} /> : <Icon.check width={15} height={15} />}
           {saving ? 'Saving…' : 'Save settings'}
         </button>
       </PageHead>
@@ -278,11 +289,18 @@ export default function SettingsForm({
                 className="btn-icon danger"
                 title="Remove step"
                 aria-label="Remove step"
+                disabled={actionBusy === `step-${s.id}`}
                 onClick={() =>
-                  post('/api/settings/onboarding', { id: s.id }, 'Step removed.', 'DELETE')
+                  withBusy(`step-${s.id}`, () =>
+                    post('/api/settings/onboarding', { id: s.id }, 'Step removed.', 'DELETE'),
+                  )
                 }
               >
-                <Icon.trash width={15} height={15} />
+                {actionBusy === `step-${s.id}` ? (
+                  <Icon.spinner width={15} height={15} />
+                ) : (
+                  <Icon.trash width={15} height={15} />
+                )}
               </button>
             </div>
           ))}
@@ -313,13 +331,15 @@ export default function SettingsForm({
             </select>
             <button
               className="btn"
-              disabled={!step.title.trim()}
-              onClick={async () => {
-                const ok = await post('/api/settings/onboarding', step, 'Step added.');
-                if (ok) setStep({ title: '', description: '', kind: 'CHECK' });
-              }}
+              disabled={!step.title.trim() || actionBusy === 'add-step'}
+              onClick={() =>
+                withBusy('add-step', async () => {
+                  const ok = await post('/api/settings/onboarding', step, 'Step added.');
+                  if (ok) setStep({ title: '', description: '', kind: 'CHECK' });
+                })
+              }
             >
-              <Icon.plus width={15} height={15} />
+              {actionBusy === 'add-step' ? <Icon.spinner width={15} height={15} /> : <Icon.plus width={15} height={15} />}
               Add step
             </button>
           </div>
@@ -341,9 +361,14 @@ export default function SettingsForm({
                 style={{ padding: 2, marginLeft: 2 }}
                 title={`Remove ${d}`}
                 aria-label={`Remove ${d}`}
-                onClick={() => post('/api/departments', { name: d }, `${d} removed.`, 'DELETE')}
+                disabled={actionBusy === `dept-${d}`}
+                onClick={() => withBusy(`dept-${d}`, () => post('/api/departments', { name: d }, `${d} removed.`, 'DELETE'))}
               >
-                <Icon.close width={11} height={11} />
+                {actionBusy === `dept-${d}` ? (
+                  <Icon.spinner width={11} height={11} />
+                ) : (
+                  <Icon.close width={11} height={11} />
+                )}
               </button>
             </span>
           ))}
@@ -358,13 +383,15 @@ export default function SettingsForm({
           />
           <button
             className="btn"
-            disabled={!deptName.trim()}
-            onClick={async () => {
-              const ok = await post('/api/departments', { name: deptName.trim() }, 'Department added.');
-              if (ok) setDeptName('');
-            }}
+            disabled={!deptName.trim() || actionBusy === 'add-dept'}
+            onClick={() =>
+              withBusy('add-dept', async () => {
+                const ok = await post('/api/departments', { name: deptName.trim() }, 'Department added.');
+                if (ok) setDeptName('');
+              })
+            }
           >
-            <Icon.plus width={15} height={15} />
+            {actionBusy === 'add-dept' ? <Icon.spinner width={15} height={15} /> : <Icon.plus width={15} height={15} />}
             Add department
           </button>
         </div>
@@ -393,9 +420,14 @@ export default function SettingsForm({
                 className="btn-icon danger"
                 title="Remove app"
                 aria-label="Remove app"
-                onClick={() => post(`/api/apps/${a.id}`, {}, 'App removed.', 'DELETE')}
+                disabled={actionBusy === `app-${a.id}`}
+                onClick={() => withBusy(`app-${a.id}`, () => post(`/api/apps/${a.id}`, {}, 'App removed.', 'DELETE'))}
               >
-                <Icon.trash width={15} height={15} />
+                {actionBusy === `app-${a.id}` ? (
+                  <Icon.spinner width={15} height={15} />
+                ) : (
+                  <Icon.trash width={15} height={15} />
+                )}
               </button>
             </div>
           ))}
@@ -454,13 +486,15 @@ export default function SettingsForm({
           />
           <button
             className="btn"
-            disabled={!app.name.trim()}
-            onClick={async () => {
-              const ok = await post('/api/apps', app, 'App added.');
-              if (ok) setApp({ name: '', description: '', url: '', icon: '◆', department: '' });
-            }}
+            disabled={!app.name.trim() || actionBusy === 'add-app'}
+            onClick={() =>
+              withBusy('add-app', async () => {
+                const ok = await post('/api/apps', app, 'App added.');
+                if (ok) setApp({ name: '', description: '', url: '', icon: '◆', department: '' });
+              })
+            }
           >
-            <Icon.plus width={15} height={15} />
+            {actionBusy === 'add-app' ? <Icon.spinner width={15} height={15} /> : <Icon.plus width={15} height={15} />}
             Add app
           </button>
         </div>
@@ -477,10 +511,10 @@ export default function SettingsForm({
             </span>
             <button
               className="btn btn-sm"
-              disabled={!webhookSet}
-              onClick={() => post('/api/settings/slack-test', {}, 'Test message sent to Slack.')}
+              disabled={!webhookSet || actionBusy === 'slack-test'}
+              onClick={() => withBusy('slack-test', () => post('/api/settings/slack-test', {}, 'Test message sent to Slack.'))}
             >
-              <Icon.send width={14} height={14} />
+              {actionBusy === 'slack-test' ? <Icon.spinner width={14} height={14} /> : <Icon.send width={14} height={14} />}
               Send test
             </button>
           </>
@@ -557,18 +591,21 @@ export default function SettingsForm({
         <button
           className="btn"
           style={{ marginTop: 16 }}
-          onClick={async () => {
-            const data = await post('/api/cron/reminders', {}, null);
-            if (data) {
-              setNotice(
-                data.sent
-                  ? `Reminder pass done — ${data.reminded} task${data.reminded === 1 ? '' : 's'} posted.`
-                  : `Nothing posted: ${data.reason || 'Slack is off'}.`,
-              );
-            }
-          }}
+          disabled={actionBusy === 'reminders'}
+          onClick={() =>
+            withBusy('reminders', async () => {
+              const data = await post('/api/cron/reminders', {}, null);
+              if (data) {
+                setNotice(
+                  data.sent
+                    ? `Reminder pass done — ${data.reminded} task${data.reminded === 1 ? '' : 's'} posted.`
+                    : `Nothing posted: ${data.reason || 'Slack is off'}.`,
+                );
+              }
+            })
+          }
         >
-          <Icon.play width={15} height={15} />
+          {actionBusy === 'reminders' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
           Run reminders now
         </button>
       </Card>
@@ -584,10 +621,10 @@ export default function SettingsForm({
             </span>
             <button
               className="btn btn-sm"
-              disabled={!botTokenSet}
-              onClick={() => post('/api/settings/slack-bot-test', {}, 'Test message sent to the channel.')}
+              disabled={!botTokenSet || actionBusy === 'bot-test'}
+              onClick={() => withBusy('bot-test', () => post('/api/settings/slack-bot-test', {}, 'Test message sent to the channel.'))}
             >
-              <Icon.send width={14} height={14} />
+              {actionBusy === 'bot-test' ? <Icon.spinner width={14} height={14} /> : <Icon.send width={14} height={14} />}
               Send test
             </button>
           </>
@@ -707,18 +744,21 @@ export default function SettingsForm({
         <button
           className="btn"
           style={{ marginTop: 16 }}
-          onClick={async () => {
-            const data = await post('/api/cron/eod-summary', {}, null);
-            if (data) {
-              setNotice(
-                data.sent
-                  ? `Summary posted — ${data.present} present, ${data.absent} absent, ${data.notPickedUp} task(s) not picked up.`
-                  : `Nothing posted: ${data.reason || 'the bot is off'}.`,
-              );
-            }
-          }}
+          disabled={actionBusy === 'eod-summary'}
+          onClick={() =>
+            withBusy('eod-summary', async () => {
+              const data = await post('/api/cron/eod-summary', {}, null);
+              if (data) {
+                setNotice(
+                  data.sent
+                    ? `Summary posted — ${data.present} present, ${data.absent} absent, ${data.notPickedUp} task(s) not picked up.`
+                    : `Nothing posted: ${data.reason || 'the bot is off'}.`,
+                );
+              }
+            })
+          }
         >
-          <Icon.play width={15} height={15} />
+          {actionBusy === 'eod-summary' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
           Send today's summary now
         </button>
       </Card>
@@ -734,19 +774,21 @@ export default function SettingsForm({
             </span>
             <button
               className="btn btn-sm"
-              disabled={!sheetsKeySet}
-              onClick={async () => {
-                const data = await post('/api/cron/sheets-sync', {}, null);
-                if (data) {
-                  setNotice(
-                    data.synced
-                      ? `Synced ${data.tables} tabs.`
-                      : `Sync failed: ${data.reason || 'unknown error'}.`,
-                  );
-                }
-              }}
+              disabled={!sheetsKeySet || actionBusy === 'sheets-sync'}
+              onClick={() =>
+                withBusy('sheets-sync', async () => {
+                  const data = await post('/api/cron/sheets-sync', {}, null);
+                  if (data) {
+                    setNotice(
+                      data.synced
+                        ? `Synced ${data.tables} tabs.`
+                        : `Sync failed: ${data.reason || 'unknown error'}.`,
+                    );
+                  }
+                })
+              }
             >
-              <Icon.send width={14} height={14} />
+              {actionBusy === 'sheets-sync' ? <Icon.spinner width={14} height={14} /> : <Icon.send width={14} height={14} />}
               Sync now
             </button>
           </>
@@ -858,8 +900,12 @@ export default function SettingsForm({
               </div>
               <button
                 className="btn btn-sm btn-danger"
-                onClick={() => post('/api/settings/mcp-token', { id: t.id }, 'Token revoked.', 'DELETE')}
+                disabled={actionBusy === `token-${t.id}`}
+                onClick={() =>
+                  withBusy(`token-${t.id}`, () => post('/api/settings/mcp-token', { id: t.id }, 'Token revoked.', 'DELETE'))
+                }
               >
+                {actionBusy === `token-${t.id}` && <Icon.spinner width={13} height={13} />}
                 Revoke
               </button>
             </div>
@@ -881,17 +927,19 @@ export default function SettingsForm({
         <button
           className="btn"
           style={{ marginTop: 14 }}
-          disabled={!tokenName.trim()}
-          onClick={async () => {
-            const data = await post('/api/settings/mcp-token', { name: tokenName, scope: tokenScope }, null);
-            if (data?.token) {
-              setFreshToken(data.token);
-              setTokenName('');
-              setNotice('Token created.');
-            }
-          }}
+          disabled={!tokenName.trim() || actionBusy === 'create-token'}
+          onClick={() =>
+            withBusy('create-token', async () => {
+              const data = await post('/api/settings/mcp-token', { name: tokenName, scope: tokenScope }, null);
+              if (data?.token) {
+                setFreshToken(data.token);
+                setTokenName('');
+                setNotice('Token created.');
+              }
+            })
+          }
         >
-          <Icon.plus width={15} height={15} />
+          {actionBusy === 'create-token' ? <Icon.spinner width={15} height={15} /> : <Icon.plus width={15} height={15} />}
           Create token
         </button>
       </Card>

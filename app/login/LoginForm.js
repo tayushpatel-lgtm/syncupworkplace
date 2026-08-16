@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Icon } from '../../components/Icons';
 
 export default function LoginForm({ next = '/' }) {
   const router = useRouter();
@@ -65,6 +66,7 @@ export default function LoginForm({ next = '/' }) {
         />
 
         <button className="btn btn-primary" type="submit" disabled={busy}>
+          {busy && <Icon.spinner width={14} height={14} />}
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
 

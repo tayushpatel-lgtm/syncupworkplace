@@ -67,7 +67,7 @@ function RevealField({ entryId }) {
 
   return (
     <button className="btn btn-sm" onClick={reveal} disabled={state === 'loading'}>
-      <Icon.eye width={14} height={14} />
+      {state === 'loading' ? <Icon.spinner width={14} height={14} /> : <Icon.eye width={14} height={14} />}
       {state === 'loading' ? 'Revealing…' : state === 'error' ? 'Not shared with you' : 'Reveal'}
     </button>
   );
@@ -191,6 +191,7 @@ function EntryForm({ form, setForm, people, departments, currentUserId, submitLa
 
       <div className="row end" style={{ marginTop: 22 }}>
         <button className="btn btn-primary" type="submit" disabled={busy || !form.title.trim()}>
+          {busy && <Icon.spinner width={14} height={14} />}
           {busy ? 'Saving…' : submitLabel}
         </button>
       </div>
@@ -206,6 +207,7 @@ export default function PasswordApp({ entries, people, departments, currentUserI
   const [form, setForm] = useState(BLANK);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [removing, setRemoving] = useState('');
 
   function openAdd() {
     setForm(BLANK);
@@ -267,8 +269,10 @@ export default function PasswordApp({ entries, people, departments, currentUserI
   }
 
   async function remove(id) {
+    setRemoving(id);
     const res = await fetch(`/api/passwords/${id}`, { method: 'DELETE' });
     if (res.ok) router.refresh();
+    setRemoving('');
   }
 
   return (
@@ -301,8 +305,18 @@ export default function PasswordApp({ entries, people, departments, currentUserI
                   <button className="btn-icon" title="Edit" aria-label="Edit" onClick={() => openEdit(entry)}>
                     <Icon.edit width={14} height={14} />
                   </button>
-                  <button className="btn-icon danger" title="Delete" aria-label="Delete" onClick={() => remove(entry.id)}>
-                    <Icon.trash width={14} height={14} />
+                  <button
+                    className="btn-icon danger"
+                    title="Delete"
+                    aria-label="Delete"
+                    disabled={removing === entry.id}
+                    onClick={() => remove(entry.id)}
+                  >
+                    {removing === entry.id ? (
+                      <Icon.spinner width={14} height={14} />
+                    ) : (
+                      <Icon.trash width={14} height={14} />
+                    )}
                   </button>
                 </>
               )}

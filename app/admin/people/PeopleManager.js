@@ -64,6 +64,8 @@ export default function PeopleManager({
   const [pw, setPw] = useState('');
   const [pwSaved, setPwSaved] = useState(false);
   const [pwError, setPwError] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+  const [rowBusy, setRowBusy] = useState('');
 
   async function add(e) {
     e.preventDefault();
@@ -114,12 +116,14 @@ export default function PeopleManager({
   async function submitReset(e) {
     e.preventDefault();
     setPwError('');
+    setPwBusy(true);
     const res = await fetch(`/api/people/${resetting.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: pw }),
     });
     const data = await res.json().catch(() => ({}));
+    setPwBusy(false);
     if (!res.ok) {
       setPwError(data.error || 'Could not set that password.');
       return;
@@ -240,6 +244,7 @@ export default function PeopleManager({
 
           <div className="row end" style={{ marginTop: 20 }}>
             <button className="btn btn-primary" type="submit" disabled={busy}>
+              {busy && <Icon.spinner width={14} height={14} />}
               {busy ? 'Adding…' : 'Add them'}
             </button>
           </div>
@@ -325,15 +330,18 @@ export default function PeopleManager({
                     </button>
                     <button
                       className={`btn btn-sm ${p.active ? 'btn-danger' : ''}`}
-                      disabled={p.id === currentUserId}
-                      onClick={() =>
-                        patch(
+                      disabled={p.id === currentUserId || rowBusy === p.id}
+                      onClick={async () => {
+                        setRowBusy(p.id);
+                        await patch(
                           p.id,
                           { active: !p.active },
                           p.active ? `${p.name} can no longer sign in.` : `${p.name} is back.`,
-                        )
-                      }
+                        );
+                        setRowBusy('');
+                      }}
                     >
+                      {rowBusy === p.id && <Icon.spinner width={13} height={13} />}
                       {p.active ? 'Deactivate' : 'Reactivate'}
                     </button>
                   </div>
@@ -394,8 +402,9 @@ export default function PeopleManager({
                   Done
                 </button>
               ) : (
-                <button className="btn btn-primary" type="submit" disabled={pw.length < 8}>
-                  Set password
+                <button className="btn btn-primary" type="submit" disabled={pw.length < 8 || pwBusy}>
+                  {pwBusy && <Icon.spinner width={14} height={14} />}
+                  {pwBusy ? 'Setting…' : 'Set password'}
                 </button>
               )}
             </div>

@@ -26,6 +26,7 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
   const [granting, setGranting] = useState(null);
   const [grant, setGrant] = useState({ kind: 'PLANNED', days: 1 });
   const [policy, setPolicy] = useState({ sickTotal: 12, plannedTotal: 12 });
+  const [busy, setBusy] = useState('');
 
   const waiting = requests.filter((r) => r.status === 'PENDING');
   const settled = requests.filter((r) => r.status !== 'PENDING');
@@ -46,6 +47,15 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
     if (message) setNotice(message);
     router.refresh();
     return true;
+  }
+
+  async function withBusy(key, fn) {
+    setBusy(key);
+    try {
+      return await fn();
+    } finally {
+      setBusy('');
+    }
   }
 
   return (
@@ -99,26 +109,34 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
                         <div className="row end" style={{ gap: 6 }}>
                           <button
                             className="btn btn-sm btn-primary"
+                            disabled={busy === `${r.id}-approve` || busy === `${r.id}-reject`}
                             onClick={() =>
-                              post(
-                                '/api/leave/decide',
-                                { id: r.id, decision: 'APPROVED' },
-                                `${r.user.name}'s leave is approved.`,
+                              withBusy(`${r.id}-approve`, () =>
+                                post(
+                                  '/api/leave/decide',
+                                  { id: r.id, decision: 'APPROVED' },
+                                  `${r.user.name}'s leave is approved.`,
+                                ),
                               )
                             }
                           >
+                            {busy === `${r.id}-approve` && <Icon.spinner width={13} height={13} />}
                             Approve
                           </button>
                           <button
                             className="btn btn-sm btn-danger"
+                            disabled={busy === `${r.id}-approve` || busy === `${r.id}-reject`}
                             onClick={() =>
-                              post(
-                                '/api/leave/decide',
-                                { id: r.id, decision: 'REJECTED' },
-                                `${r.user.name}'s request was turned down.`,
+                              withBusy(`${r.id}-reject`, () =>
+                                post(
+                                  '/api/leave/decide',
+                                  { id: r.id, decision: 'REJECTED' },
+                                  `${r.user.name}'s request was turned down.`,
+                                ),
                               )
                             }
                           >
+                            {busy === `${r.id}-reject` && <Icon.spinner width={13} height={13} />}
                             Reject
                           </button>
                         </div>
@@ -183,15 +201,19 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
                         />
                         <button
                           className="btn btn-sm btn-primary"
-                          onClick={async () => {
-                            const ok = await post(
-                              '/api/leave/grant',
-                              { userId: row.id, kind: grant.kind, days: grant.days, year },
-                              `${grant.days} day${grant.days === 1 ? '' : 's'} granted to ${row.name}.`,
-                            );
-                            if (ok) setGranting(null);
-                          }}
+                          disabled={busy === `grant-${row.id}`}
+                          onClick={() =>
+                            withBusy(`grant-${row.id}`, async () => {
+                              const ok = await post(
+                                '/api/leave/grant',
+                                { userId: row.id, kind: grant.kind, days: grant.days, year },
+                                `${grant.days} day${grant.days === 1 ? '' : 's'} granted to ${row.name}.`,
+                              );
+                              if (ok) setGranting(null);
+                            })
+                          }
                         >
+                          {busy === `grant-${row.id}` && <Icon.spinner width={13} height={13} />}
                           Grant
                         </button>
                         <button className="btn btn-sm" onClick={() => setGranting(null)}>
@@ -261,10 +283,14 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
           <div className="row end" style={{ marginTop: 20 }}>
             <button
               className="btn btn-primary"
+              disabled={busy === 'policy'}
               onClick={() =>
-                post('/api/leave/policy', { ...policy, year }, 'The policy applies to everyone now.')
+                withBusy('policy', () =>
+                  post('/api/leave/policy', { ...policy, year }, 'The policy applies to everyone now.'),
+                )
               }
             >
+              {busy === 'policy' && <Icon.spinner width={14} height={14} />}
               Apply to everyone
             </button>
           </div>

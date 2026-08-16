@@ -47,7 +47,7 @@ function RevealCell({ entryId }) {
 
   return (
     <button className="btn btn-sm" onClick={reveal} disabled={state === 'loading'}>
-      <Icon.eye width={13} height={13} />
+      {state === 'loading' ? <Icon.spinner width={13} height={13} /> : <Icon.eye width={13} height={13} />}
       {state === 'loading' ? '…' : 'Reveal'}
     </button>
   );
@@ -59,6 +59,7 @@ export default function PasswordDirectory({ entries, people, departments }) {
   const [share, setShare] = useState({ visibility: 'PEOPLE', department: '', shareWith: [] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [removing, setRemoving] = useState('');
 
   function openShare(entry) {
     setShare({ visibility: entry.visibility, department: entry.department || '', shareWith: entry.sharedWith });
@@ -86,8 +87,10 @@ export default function PasswordDirectory({ entries, people, departments }) {
   }
 
   async function remove(id) {
+    setRemoving(id);
     const res = await fetch(`/api/passwords/${id}`, { method: 'DELETE' });
     if (res.ok) router.refresh();
+    setRemoving('');
   }
 
   const sharingEntry = entries.find((e) => e.id === sharing);
@@ -124,8 +127,18 @@ export default function PasswordDirectory({ entries, people, departments }) {
                     <RevealCell entryId={entry.id} />
                   </td>
                   <td className="right">
-                    <button className="btn-icon danger" title="Delete" aria-label="Delete" onClick={() => remove(entry.id)}>
-                      <Icon.trash width={14} height={14} />
+                    <button
+                      className="btn-icon danger"
+                      title="Delete"
+                      aria-label="Delete"
+                      disabled={removing === entry.id}
+                      onClick={() => remove(entry.id)}
+                    >
+                      {removing === entry.id ? (
+                        <Icon.spinner width={14} height={14} />
+                      ) : (
+                        <Icon.trash width={14} height={14} />
+                      )}
                     </button>
                   </td>
                 </tr>
@@ -199,6 +212,7 @@ export default function PasswordDirectory({ entries, people, departments }) {
 
           <div className="row end" style={{ marginTop: 20 }}>
             <button className="btn btn-primary" type="submit" disabled={busy}>
+              {busy && <Icon.spinner width={14} height={14} />}
               {busy ? 'Saving…' : 'Save sharing'}
             </button>
           </div>

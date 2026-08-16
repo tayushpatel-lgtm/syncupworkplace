@@ -101,7 +101,8 @@ export default function HolidayAdmin() {
             style={{ marginTop: 27 }}
             disabled={busy || !date || !name.trim()}
           >
-            Add
+            {busy && <Icon.spinner width={14} height={14} />}
+            {busy ? 'Adding…' : 'Add'}
           </button>
         </form>
         {error && <p className="error-line">{error}</p>}
@@ -146,7 +147,7 @@ export default function HolidayAdmin() {
 
           <div className="row end" style={{ marginTop: 16 }}>
             <button className="btn btn-primary" type="submit" disabled={bulkBusy || !pasted.trim()}>
-              <Icon.plus width={15} height={15} />
+              {bulkBusy ? <Icon.spinner width={15} height={15} /> : <Icon.plus width={15} height={15} />}
               {bulkBusy ? 'Importing…' : 'Import the list'}
             </button>
           </div>
