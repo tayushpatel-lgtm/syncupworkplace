@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
-import { getSettings, holidayKeySet } from '../../lib/settings';
+import { getSettings, holidayKeySet, presentThresholdMinutes } from '../../lib/settings';
 import { dayKey, weekday, isWorkingDay, formatDuration } from '../../lib/dates';
 import Shell from '../../components/Shell';
 import { PageHead, Card, Stat } from '../../components/ui';
@@ -83,7 +83,10 @@ export default async function CalendarPage({ searchParams }) {
   const lead = weekday(first) - 1; // Monday-first grid
   for (let i = 0; i < lead; i += 1) cells.push(null);
 
+  const threshold = presentThresholdMinutes(user, settings);
+
   let presentCount = 0;
+  let shortCount = 0;
   let lateCount = 0;
   let expected = 0;
   let totalMinutes = 0;
@@ -94,9 +97,16 @@ export default async function CalendarPage({ searchParams }) {
     const working = isWorkingDay(key, settings.workingDays, holidayKeys);
     const onLeave = leaveKeys.has(key);
     const minutes = Math.round(workedMinutes.get(key) || 0);
+    const isToday = key === today;
+    // A day still in progress hasn't earned its verdict yet — only a finished
+    // day can be short of the threshold.
+    const met = minutes >= threshold;
 
     if (working && key <= today && !onLeave) expected += 1;
-    if (record?.checkInAt) presentCount += 1;
+    if (record?.checkInAt && !isToday) {
+      if (met) presentCount += 1;
+      else shortCount += 1;
+    }
     if (record?.late) lateCount += 1;
     totalMinutes += minutes;
 
@@ -106,10 +116,11 @@ export default async function CalendarPage({ searchParams }) {
       working,
       onLeave,
       holiday: holidays.get(key) || null,
-      present: !!record?.checkInAt,
+      present: !!record?.checkInAt && (isToday || met),
+      short: !!record?.checkInAt && !isToday && !met,
       late: !!record?.late,
       minutes,
-      isToday: key === today,
+      isToday,
       future: key > today,
     });
   }
@@ -135,7 +146,11 @@ export default async function CalendarPage({ searchParams }) {
       <div className="grid-4" style={{ marginBottom: 22 }}>
         <Stat label="DAYS PRESENT" value={presentCount} sub={`of ${expected} expected so far`} focus />
         <Stat label="ATTENDANCE" value={`${attendancePct}%`} sub="working days only" />
-        <Stat label="LATE ARRIVALS" value={lateCount} sub="past the check-in time" />
+        <Stat
+          label="SHORT DAYS"
+          value={shortCount}
+          sub={`checked in, under ${formatDuration(threshold)}`}
+        />
         <Stat label="HOURS RECORDED" value={formatDuration(totalMinutes)} sub="work time only" />
       </div>
 
@@ -166,9 +181,18 @@ export default async function CalendarPage({ searchParams }) {
                     <span className="tag mono">{formatDuration(cell.minutes)}</span>
                   </>
                 )}
+                {!cell.holiday && !cell.onLeave && cell.short && (
+                  <>
+                    <span className="cal-dot" style={{ background: 'var(--amber)' }} />
+                    <span className="tag mono" style={{ color: 'var(--amber)' }}>
+                      {formatDuration(cell.minutes)} · short
+                    </span>
+                  </>
+                )}
                 {!cell.holiday &&
                   !cell.onLeave &&
                   !cell.present &&
+                  !cell.short &&
                   cell.working &&
                   !cell.future && <span className="tag" style={{ color: 'var(--red)' }}>Absent</span>}
               </div>

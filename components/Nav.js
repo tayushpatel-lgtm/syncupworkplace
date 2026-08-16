@@ -7,6 +7,7 @@ import { Icon } from './Icons';
 const MY_WORK = [
   ['/', 'bolt', 'My day'],
   ['/tasks', 'list', 'My tasks'],
+  ['/apps', 'grid', 'Apps'],
   ['/calendar', 'calendar', 'My calendar'],
   ['/leave', 'doc', 'My leave'],
   ['/holidays', 'calendar', 'Holidays'],
@@ -20,6 +21,7 @@ const ADMINISTRATION = [
   ['/admin/tasks', 'list', 'Tasks'],
   ['/admin/leave', 'doc', 'Leave'],
   ['/admin/insights', 'chart', 'Insights'],
+  ['/admin/passwords', 'key', 'Passwords'],
   ['/admin/settings', 'gear', 'Settings'],
 ];
 

@@ -42,6 +42,8 @@ export default function SettingsForm({
   steps,
   tokens,
   mcpUrl,
+  apps,
+  departments,
 }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
@@ -52,6 +54,7 @@ export default function SettingsForm({
   const [step, setStep] = useState({ title: '', description: '' });
   const [tokenName, setTokenName] = useState('');
   const [freshToken, setFreshToken] = useState('');
+  const [app, setApp] = useState({ name: '', description: '', url: '', icon: '◆', department: '' });
 
   const set = (patch) => setForm((cur) => ({ ...cur, ...patch }));
 
@@ -188,6 +191,26 @@ export default function SettingsForm({
 
         <div className="divider" />
 
+        <label className="field-label">MINIMUM HOURS TO COUNT AS PRESENT</label>
+        <div className="row">
+          <input
+            className="input"
+            type="number"
+            min={30}
+            max={720}
+            step={15}
+            style={{ width: 180 }}
+            value={form.minPresentMinutes}
+            onChange={(e) => set({ minPresentMinutes: Number(e.target.value) })}
+          />
+          <span className="muted" style={{ fontSize: 13.5 }}>
+            In minutes — {(form.minPresentMinutes / 60).toFixed(1)}h. Checked in but under this and
+            the day reads as short, not present. Set individual minimums on the People page.
+          </span>
+        </div>
+
+        <div className="divider" />
+
         <label className="field-label">DISCARD AS IDLE AFTER</label>
         <div className="row">
           <input
@@ -268,6 +291,102 @@ export default function SettingsForm({
           >
             <Icon.plus width={15} height={15} />
             Add step
+          </button>
+        </div>
+      </Card>
+
+      <Card
+        glyph="grid"
+        title="Department apps"
+        description="Shortcuts on the Apps page. Leave department blank for everyone; set it and only that department sees it."
+      >
+        <div className="bordered-list">
+          {apps.length === 0 && <p className="empty">No apps added yet.</p>}
+          {apps.map((a) => (
+            <div key={a.id} className="list-row">
+              <div style={{ flex: 1 }}>
+                <b>
+                  {a.icon} {a.name}
+                </b>
+                <small>
+                  {a.department || 'Company-wide'}
+                  {a.description ? ` · ${a.description}` : ''}
+                  {a.url ? ` · ${a.url}` : ''}
+                </small>
+              </div>
+              <button
+                className="btn-icon danger"
+                title="Remove app"
+                aria-label="Remove app"
+                onClick={() => post(`/api/apps/${a.id}`, {}, 'App removed.', 'DELETE')}
+              >
+                <Icon.trash width={15} height={15} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid-4" style={{ gap: 14, marginTop: 18 }}>
+          <div>
+            <label className="field-label">ICON</label>
+            <input
+              className="input"
+              value={app.icon}
+              maxLength={4}
+              onChange={(e) => setApp({ ...app, icon: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="field-label">NAME</label>
+            <input
+              className="input"
+              placeholder="Figma"
+              value={app.name}
+              onChange={(e) => setApp({ ...app, name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="field-label">LINK — OPTIONAL</label>
+            <input
+              className="input"
+              placeholder="https://…"
+              value={app.url}
+              onChange={(e) => setApp({ ...app, url: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="field-label">DEPARTMENT</label>
+            <select
+              className="select"
+              value={app.department}
+              onChange={(e) => setApp({ ...app, department: e.target.value })}
+            >
+              <option value="">Company-wide</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="row" style={{ marginTop: 14 }}>
+          <input
+            className="input"
+            placeholder="What it's for — optional"
+            value={app.description}
+            onChange={(e) => setApp({ ...app, description: e.target.value })}
+          />
+          <button
+            className="btn"
+            disabled={!app.name.trim()}
+            onClick={async () => {
+              const ok = await post('/api/apps', app, 'App added.');
+              if (ok) setApp({ name: '', description: '', url: '', icon: '◆', department: '' });
+            }}
+          >
+            <Icon.plus width={15} height={15} />
+            Add app
           </button>
         </div>
       </Card>

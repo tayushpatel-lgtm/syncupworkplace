@@ -5,6 +5,7 @@ import { serialiseTask } from '../../lib/serialise';
 import { dayKey } from '../../lib/dates';
 import Shell from '../../components/Shell';
 import TaskBoard from '../../components/TaskBoard';
+import AssignTaskButton from '../../components/AssignTaskButton';
 import { PageHead } from '../../components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +21,7 @@ export default async function MyTasksPage() {
       include: {
         assignee: { select: { id: true, name: true } },
         creator: { select: { id: true, name: true } },
+        _count: { select: { attachments: true } },
       },
     }),
     prisma.user.findMany({
@@ -36,14 +38,10 @@ export default async function MyTasksPage() {
       <PageHead
         title="My tasks"
         subtitle={`${open} open of ${tasks.length} · the cap is ${settings.assignmentCap} open tasks each`}
-      />
-      <TaskBoard
-        tasks={tasks.map(serialiseTask)}
-        people={people}
-        currentUserId={user.id}
-        today={dayKey()}
-        assignable
-      />
+      >
+        <AssignTaskButton people={people} currentUserId={user.id} />
+      </PageHead>
+      <TaskBoard tasks={tasks.map(serialiseTask)} today={dayKey()} />
     </Shell>
   );
 }

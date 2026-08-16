@@ -11,14 +11,20 @@ layout — there is no phone version, by design.
 1. Someone arrives and **checks in**. Their arrival is stamped against their own
    deadline, and a late arrival is recorded as late.
 2. Their **plan for the day** opens with every open task assigned to them, plus
-   anything they left unfinished on the last working day.
+   anything they left unfinished on the last working day. If it's empty, the day
+   doesn't start until at least one point is added — that's the plan.
 3. **Anyone can assign a task to anyone.** It lands on that person's plan the same
    day, subject to the per-person assignment cap.
 4. Points get **ticked off** through the day. Ticking a point that came from a task
-   moves the task on the board too — the two never disagree.
+   moves the task on the board too — the two never disagree, so whatever is
+   already completed reaches the report without re-doing the work.
 5. At the end, they **file the report**. The app composes it from the day's real
    data; the only thing anyone types is what it added up to.
 6. Whatever is still open **carries to the next working day**.
+
+Whether a day counts as **present** isn't just "did they check in" — it's checked
+in *and* worked the minimum hours (Settings, overridable per person). Short of
+that, a day reads as short, not present, everywhere attendance is counted.
 
 ## Stack
 
@@ -66,6 +72,23 @@ the password `syncup1234`:
 | `deepak@syncup.in` | Employee |
 
 `zoya@syncup.in` is seeded mid-onboarding, so signing in as her shows the gate.
+
+## Tasks
+
+The board is swim lanes, full page — assigning happens from the button top-right,
+not an inline form. Open any card for its own page: change stage, edit detail,
+attach files or images. Attachments live as bytes in the same Postgres database
+rather than a paid storage service, capped at 4MB each.
+
+## Apps
+
+`My work → Apps` is a small shelf of shortcuts — company-wide, or scoped to one
+department — that admins fill in from Settings. One app ships built in:
+**Password**, a shared credential vault. Secrets are encrypted at rest
+(AES-256-GCM, keyed off `SESSION_SECRET`, so no extra secret to configure) and
+hidden behind a Reveal action. Visibility is company-wide, one department, or
+specific people; admins get a directory at `Administration → Passwords` that
+sees every entry and can reassign sharing regardless of who added it.
 
 ## How the time is counted
 

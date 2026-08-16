@@ -51,6 +51,12 @@ enum LeaveStatus {
   CANCELLED
 }
 
+enum PasswordVisibility {
+  COMPANY
+  DEPARTMENT
+  PEOPLE
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -61,6 +67,8 @@ model User {
   title        String?
   /// Per-person override for the check-in deadline, "HH:MM". Falls back to Settings.defaultCheckInBy.
   checkInBy    String?
+  /// Per-person override for the minimum worked minutes to count as present. Falls back to Settings.minPresentMinutes.
+  minPresentMinutes Int?
   active       Boolean  @default(true)
   joinedAt     DateTime @default(now())
   createdAt    DateTime @default(now())
@@ -75,6 +83,10 @@ model User {
   decidedLeave       LeaveRequest[]       @relation("LeaveDecider")
   balances           LeaveBalance[]
   onboardingProgress OnboardingProgress[]
+  attachments        TaskAttachment[]
+  createdApps        App[]
+  createdPasswords   PasswordEntry[]      @relation("PasswordCreator")
+  passwordShares     PasswordShare[]
 
   @@index([active])
 }
@@ -107,6 +119,10 @@ model Settings {
 
   // Heartbeat: minutes without a beat before the stretch is discarded as idle
   idleAfterMinutes Int @default(10)
+
+  // Presence
+  /// Minutes of recorded work a day needs to count as present, company default.
+  minPresentMinutes Int @default(240)
 
   updatedAt DateTime @updatedAt
 }
@@ -206,12 +222,32 @@ model Task {
   /// Last day a deadline reminder went out, so the daily pass doesn't repeat itself.
   lastRemindedOn DateTime? @db.Date
 
-  assignee User        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
-  creator  User        @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  points   PlanPoint[]
+  assignee    User             @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  creator     User             @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  points      PlanPoint[]
+  attachments TaskAttachment[]
 
   @@index([assigneeId, status])
   @@index([dueDate])
+}
+
+/// A file or image on a task. Stored as bytes in the same database rather than a
+/// separate paid storage service — fine at the size a team task tool sees, capped
+/// per file so it stays that way.
+model TaskAttachment {
+  id         String   @id @default(cuid())
+  taskId     String
+  filename   String
+  mimeType   String
+  size       Int
+  data       Bytes
+  uploadedById String
+  createdAt  DateTime @default(now())
+
+  task       Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }
 
 model DailyReport {
@@ -290,4 +326,59 @@ model McpToken {
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
+}
+
+/// A shortcut shown on the Apps page — company-wide, or scoped to one department.
+/// No real integrations behind these; admins fill in whatever links their team needs.
+model App {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  url         String?
+  icon        String   @default("◆")
+  /// Null means every department sees it.
+  department  String?
+  order       Int      @default(0)
+  createdById String
+  createdAt   DateTime @default(now())
+
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([department])
+}
+
+/// One shared credential. The secret is encrypted at rest; who can see it is
+/// controlled by visibility plus the explicit shares below.
+model PasswordEntry {
+  id         String             @id @default(cuid())
+  title      String
+  username   String?
+  /// AES-256-GCM ciphertext: iv + authTag + encrypted bytes, see lib/crypto.js.
+  secret     Bytes
+  url        String?
+  notes      String?
+  visibility PasswordVisibility @default(PEOPLE)
+  /// Used when visibility = DEPARTMENT.
+  department String?
+  createdById String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  createdBy User            @relation("PasswordCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  shares    PasswordShare[]
+
+  @@index([visibility, department])
+}
+
+/// A specific person granted access to one entry, on top of whatever visibility gives them.
+model PasswordShare {
+  id        String   @id @default(cuid())
+  passwordId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  password PasswordEntry @relation(fields: [passwordId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([passwordId, userId])
 }

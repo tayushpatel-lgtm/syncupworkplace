@@ -171,6 +171,39 @@ export default function MyDay(props) {
     );
   }
 
+  // ---------------------------------------------------------------- Set the plan before anything else
+
+  if (!checkedOut && plan.length === 0) {
+    return (
+      <>
+        <PageHead title="My day" subtitle={dayLabel}>
+          {late && <span className="chip amber">late arrival</span>}
+        </PageHead>
+        <Card
+          glyph="clipboard"
+          title="What's the plan for today?"
+          description="Add at least one point before the day gets going. This is what shows up in the swim lanes, and what tonight's report is checked against."
+        >
+          <form className="plan-add" onSubmit={addPoint}>
+            <input
+              ref={addRef}
+              className="input"
+              placeholder="e.g. Review the onboarding flow"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              autoFocus
+            />
+            <button className="btn btn-primary" type="submit" disabled={!draft.trim() || busy === 'add'}>
+              <Icon.plus width={15} height={15} />
+              Add
+            </button>
+          </form>
+          {error && <p className="error-line">{error}</p>}
+        </Card>
+      </>
+    );
+  }
+
   // ---------------------------------------------------------------- The working day
 
   return (

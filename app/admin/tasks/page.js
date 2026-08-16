@@ -6,6 +6,7 @@ import { serialiseTask } from '../../../lib/serialise';
 import { dayKey } from '../../../lib/dates';
 import Shell from '../../../components/Shell';
 import TaskBoard from '../../../components/TaskBoard';
+import AssignTaskButton from '../../../components/AssignTaskButton';
 import { PageHead, Stat } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,7 @@ export default async function AdminTasksPage({ searchParams }) {
       include: {
         assignee: { select: { id: true, name: true } },
         creator: { select: { id: true, name: true } },
+        _count: { select: { attachments: true } },
       },
       take: 500,
     }),
@@ -48,7 +50,9 @@ export default async function AdminTasksPage({ searchParams }) {
       <PageHead
         title="Tasks"
         subtitle={`${open.length} open across the company · the cap is ${settings.assignmentCap} each`}
-      />
+      >
+        <AssignTaskButton people={people} currentUserId={user.id} />
+      </PageHead>
 
       <div className="grid-4" style={{ marginBottom: 22 }}>
         <Stat label="OPEN" value={open.length} sub={`${tasks.length} in total`} focus />
@@ -77,15 +81,7 @@ export default async function AdminTasksPage({ searchParams }) {
         })}
       </div>
 
-      <TaskBoard
-        tasks={tasks.map(serialiseTask)}
-        people={people}
-        currentUserId={user.id}
-        today={today}
-        assignable
-        showAssignee
-        canDelete
-      />
+      <TaskBoard tasks={tasks.map(serialiseTask)} today={today} showAssignee canDelete />
     </Shell>
   );
 }

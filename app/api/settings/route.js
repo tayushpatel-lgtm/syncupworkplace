@@ -43,6 +43,17 @@ export async function POST(request) {
     data.idleAfterMinutes = mins;
   }
 
+  if (body.minPresentMinutes !== undefined) {
+    const mins = Number(body.minPresentMinutes);
+    if (!Number.isInteger(mins) || mins < 30 || mins > 720) {
+      return Response.json(
+        { error: 'The minimum for present must be 30 to 720 minutes.' },
+        { status: 400 },
+      );
+    }
+    data.minPresentMinutes = mins;
+  }
+
   for (const flag of [
     'reportRequired',
     'planFromTasks',

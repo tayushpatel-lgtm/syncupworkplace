@@ -11,14 +11,21 @@ export default async function SettingsPage() {
   const user = await requireAdmin();
   const settings = await getSettings();
 
-  const [steps, tokens] = await Promise.all([
+  const [steps, tokens, apps, departmentRows] = await Promise.all([
     prisma.onboardingStep.findMany({ orderBy: { order: 'asc' } }),
     prisma.mcpToken.findMany({
       where: { revokedAt: null },
       orderBy: { createdAt: 'desc' },
       select: { id: true, name: true, prefix: true, createdAt: true, lastUsedAt: true },
     }),
+    prisma.app.findMany({ orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    prisma.user.findMany({
+      where: { active: true, department: { not: null } },
+      select: { department: true },
+      distinct: ['department'],
+    }),
   ]);
+  const departments = departmentRows.map((d) => d.department).filter(Boolean).sort();
 
   // The MCP URL has to be the one people actually reach this deployment on.
   const head = await headers();
@@ -41,6 +48,7 @@ export default async function SettingsPage() {
           slackOnStatus: settings.slackOnStatus,
           slackOnDeadline: settings.slackOnDeadline,
           idleAfterMinutes: settings.idleAfterMinutes,
+          minPresentMinutes: settings.minPresentMinutes,
         }}
         webhookSet={!!settings.slackWebhookUrl}
         cronConfigured={!!process.env.CRON_SECRET}
@@ -53,6 +61,15 @@ export default async function SettingsPage() {
           lastUsedAt: t.lastUsedAt ? t.lastUsedAt.toISOString().slice(0, 10) : null,
         }))}
         mcpUrl={`${proto}://${host}/api/mcp`}
+        apps={apps.map((a) => ({
+          id: a.id,
+          name: a.name,
+          description: a.description || '',
+          url: a.url || '',
+          icon: a.icon,
+          department: a.department || '',
+        }))}
+        departments={departments}
       />
     </Shell>
   );

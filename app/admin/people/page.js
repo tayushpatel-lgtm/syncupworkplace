@@ -21,6 +21,7 @@ export default async function PeoplePage() {
       department: true,
       title: true,
       checkInBy: true,
+      minPresentMinutes: true,
       active: true,
       joinedAt: true,
       _count: { select: { assignedTasks: true } },
@@ -49,11 +50,13 @@ export default async function PeoplePage() {
           department: p.department || '',
           title: p.title || '',
           checkInBy: p.checkInBy || '',
+          minPresentMinutes: p.minPresentMinutes ?? '',
           active: p.active,
           joinedAt: p.joinedAt.toISOString().slice(0, 10),
           openTasks: openBy.get(p.id) || 0,
         }))}
         defaultCheckInBy={settings.defaultCheckInBy}
+        defaultMinPresentMinutes={settings.minPresentMinutes}
         assignmentCap={settings.assignmentCap}
         currentUserId={user.id}
         isCeo={user.role === 'CEO'}

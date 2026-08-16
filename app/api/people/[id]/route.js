@@ -25,6 +25,16 @@ export async function PATCH(request, { params }) {
   if (body.checkInBy !== undefined) {
     data.checkInBy = /^\d{2}:\d{2}$/.test(body.checkInBy) ? body.checkInBy : null;
   }
+  if (body.minPresentMinutes !== undefined) {
+    const mins = Number(body.minPresentMinutes);
+    if (mins === null || body.minPresentMinutes === null) {
+      data.minPresentMinutes = null;
+    } else if (!Number.isInteger(mins) || mins < 30 || mins > 720) {
+      return Response.json({ error: 'Minimum hours must be 30 to 720 minutes.' }, { status: 400 });
+    } else {
+      data.minPresentMinutes = mins;
+    }
+  }
 
   if (body.role !== undefined) {
     if (!ROLES.includes(body.role)) return Response.json({ error: 'Unknown role.' }, { status: 400 });

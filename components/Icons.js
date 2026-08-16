@@ -76,6 +76,43 @@ export const Icon = {
       <path d="M12 5v14M5 12h14" />
     </svg>
   ),
+  close: (p) => (
+    <svg {...base} {...p}>
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  ),
+  paperclip: (p) => (
+    <svg {...base} {...p}>
+      <path d="M21 11.5 12.4 20a4.7 4.7 0 0 1-6.6-6.6l8-8a3.2 3.2 0 0 1 4.5 4.5l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.1-7.1" />
+    </svg>
+  ),
+  image: (p) => (
+    <svg {...base} {...p}>
+      <rect x="3" y="3" width="18" height="18" rx="2.5" />
+      <circle cx="9" cy="9" r="1.8" />
+      <path d="M21 15l-5.5-5.5L3 21" />
+    </svg>
+  ),
+  key: (p) => (
+    <svg {...base} {...p}>
+      <circle cx="8" cy="15" r="4" />
+      <path d="M11 12l8-8M15 8l2.5 2.5M18 5l2.5 2.5" />
+    </svg>
+  ),
+  grid: (p) => (
+    <svg {...base} {...p}>
+      <rect x="3" y="3" width="8" height="8" rx="1.6" />
+      <rect x="13" y="3" width="8" height="8" rx="1.6" />
+      <rect x="3" y="13" width="8" height="8" rx="1.6" />
+      <rect x="13" y="13" width="8" height="8" rx="1.6" />
+    </svg>
+  ),
+  eye: (p) => (
+    <svg {...base} {...p}>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
   trash: (p) => (
     <svg {...base} {...p}>
       <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />

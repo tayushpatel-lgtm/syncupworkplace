@@ -24,6 +24,7 @@ const BLANK = {
 export default function PeopleManager({
   people,
   defaultCheckInBy,
+  defaultMinPresentMinutes,
   assignmentCap,
   currentUserId,
   isCeo,
@@ -194,6 +195,7 @@ export default function PeopleManager({
               <th>DEPARTMENT</th>
               <th>ROLE</th>
               <th>CHECK-IN BY</th>
+              <th>MIN HOURS</th>
               <th className="right">OPEN TASKS</th>
               <th className="right" />
             </tr>
@@ -239,6 +241,19 @@ export default function PeopleManager({
                       value={p.checkInBy || defaultCheckInBy}
                       onChange={(e) => patch(p.id, { checkInBy: e.target.value })}
                       style={{ padding: '7px 10px', width: 130 }}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      className="input"
+                      type="number"
+                      min={30}
+                      max={720}
+                      step={15}
+                      value={p.minPresentMinutes === '' ? defaultMinPresentMinutes : p.minPresentMinutes}
+                      onChange={(e) => patch(p.id, { minPresentMinutes: Number(e.target.value) })}
+                      style={{ padding: '7px 10px', width: 90 }}
+                      title="Minutes worked to count as present"
                     />
                   </td>
                   <td className="num right">

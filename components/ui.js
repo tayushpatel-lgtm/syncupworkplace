@@ -84,4 +84,29 @@ export function Empty({ children }) {
   return <p className="empty">{children}</p>;
 }
 
+export function Modal({ open, onClose, title, description, children, wide = false }) {
+  if (!open) return null;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className={`modal-panel ${wide ? 'wide' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="modal-head">
+          <div>
+            <h2>{title}</h2>
+            {description && <p>{description}</p>}
+          </div>
+          <button className="btn-icon" onClick={onClose} aria-label="Close">
+            <Icon.close width={17} height={17} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export { STATUS_LABEL };
