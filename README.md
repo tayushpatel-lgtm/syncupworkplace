@@ -123,6 +123,20 @@ People are added, deactivated, and have their password reset — including
 generating one — from `/admin/people`. Only the CEO can touch another CEO's
 role, active state, or password; any admin can manage everyone else.
 
+### Onboarding checklist
+
+Nobody reaches the app until every step is ticked (while it's enforced) —
+`/admin/settings` manages the list. A step is one of two kinds:
+
+- **Checkbox** — the person self-attests it's done.
+- **Slack ID** — instead of a checkbox, a text field for their Slack member
+  ID (Slack profile → ••• → Copy member ID). Saving it writes straight to
+  their account, so a personal DM works from their very first day, without
+  waiting on the email-lookup fallback.
+
+The default checklist covers what a new hire needs before day one: offer
+letter signed, official email signed in, Slack ID, induction done.
+
 Holidays go in one at a time on `/holidays`, or a whole year at once by
 pasting a calendar list (date, weekday, name, type — only the date and name
 are kept) into the bulk importer there.

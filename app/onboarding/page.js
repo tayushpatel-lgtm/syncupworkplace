@@ -23,6 +23,7 @@ export default async function OnboardingPage() {
       name={user.name}
       steps={steps}
       doneIds={done.map((d) => d.stepId)}
+      slackUserId={user.slackUserId || ''}
     />
   );
 }

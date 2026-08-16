@@ -137,15 +137,16 @@ async function main() {
 
   console.log('Onboarding checklist…');
   const steps = [
-    ['Read the employee handbook', 'Policies, hours and how leave works.'],
-    ['Set up your work email signature', 'Name, role and company details.'],
-    ['Complete security basics', 'Password manager and two-factor on every work account.'],
+    ['Offer letter signed', 'The signed copy is on file with HR.', 'CHECK'],
+    ['Official email signed in', 'Signed in to their @syncup.in account at least once.', 'CHECK'],
+    ['Slack ID', 'From here you can DM them personally.', 'SLACK_ID'],
+    ['Induction done', 'Walked through the team, the tools and how the day runs.', 'CHECK'],
   ];
   const stepRows = [];
   for (let i = 0; i < steps.length; i += 1) {
     stepRows.push(
       await prisma.onboardingStep.create({
-        data: { title: steps[i][0], description: steps[i][1], order: i + 1 },
+        data: { title: steps[i][0], description: steps[i][1], kind: steps[i][2], order: i + 1 },
       }),
     );
   }

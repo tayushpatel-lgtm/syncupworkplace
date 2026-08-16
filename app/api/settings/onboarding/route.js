@@ -5,9 +5,10 @@ export async function POST(request) {
   const { error } = await apiUser({ admin: true });
   if (error) return error;
 
-  const { title, description } = await request.json().catch(() => ({}));
+  const { title, description, kind } = await request.json().catch(() => ({}));
   const text = String(title || '').trim();
   if (!text) return Response.json({ error: 'A step needs a title.' }, { status: 400 });
+  const stepKind = kind === 'SLACK_ID' ? 'SLACK_ID' : 'CHECK';
 
   const last = await prisma.onboardingStep.findFirst({
     orderBy: { order: 'desc' },
@@ -19,6 +20,7 @@ export async function POST(request) {
       title: text,
       description: String(description || '').trim() || null,
       order: (last?.order || 0) + 1,
+      kind: stepKind,
     },
   });
 

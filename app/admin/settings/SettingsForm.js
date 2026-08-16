@@ -55,7 +55,7 @@ export default function SettingsForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [step, setStep] = useState({ title: '', description: '' });
+  const [step, setStep] = useState({ title: '', description: '', kind: 'CHECK' });
   const [tokenName, setTokenName] = useState('');
   const [tokenScope, setTokenScope] = useState('READ_ONLY');
   const [freshToken, setFreshToken] = useState('');
@@ -264,7 +264,14 @@ export default function SettingsForm({
           {steps.map((s) => (
             <div key={s.id} className="list-row">
               <div style={{ flex: 1 }}>
-                <b>{s.title}</b>
+                <b>
+                  {s.title}
+                  {s.kind === 'SLACK_ID' && (
+                    <span className="chip" style={{ marginLeft: 8 }}>
+                      Slack ID
+                    </span>
+                  )}
+                </b>
                 {s.description && <small>{s.description}</small>}
               </div>
               <button
@@ -294,17 +301,28 @@ export default function SettingsForm({
             value={step.description}
             onChange={(e) => setStep({ ...step, description: e.target.value })}
           />
-          <button
-            className="btn"
-            disabled={!step.title.trim()}
-            onClick={async () => {
-              const ok = await post('/api/settings/onboarding', step, 'Step added.');
-              if (ok) setStep({ title: '', description: '' });
-            }}
-          >
-            <Icon.plus width={15} height={15} />
-            Add step
-          </button>
+          <div className="row">
+            <select
+              className="select"
+              value={step.kind}
+              onChange={(e) => setStep({ ...step, kind: e.target.value })}
+              style={{ maxWidth: 260 }}
+            >
+              <option value="CHECK">Checkbox — self-attested</option>
+              <option value="SLACK_ID">Slack ID — captures their Slack member ID</option>
+            </select>
+            <button
+              className="btn"
+              disabled={!step.title.trim()}
+              onClick={async () => {
+                const ok = await post('/api/settings/onboarding', step, 'Step added.');
+                if (ok) setStep({ title: '', description: '', kind: 'CHECK' });
+              }}
+            >
+              <Icon.plus width={15} height={15} />
+              Add step
+            </button>
+          </div>
         </div>
       </Card>
 

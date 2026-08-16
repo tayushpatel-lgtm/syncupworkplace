@@ -4,10 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '../../components/Icons';
 
-export default function OnboardingChecklist({ name, steps, doneIds }) {
+export default function OnboardingChecklist({ name, steps, doneIds, slackUserId }) {
   const router = useRouter();
   const [done, setDone] = useState(new Set(doneIds));
   const [busy, setBusy] = useState(false);
+  const [slackInput, setSlackInput] = useState(slackUserId || '');
+  const [slackError, setSlackError] = useState('');
+  const [slackSaving, setSlackSaving] = useState(false);
 
   const remaining = steps.length - done.size;
 
@@ -22,6 +25,23 @@ export default function OnboardingChecklist({ name, steps, doneIds }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ stepId, done: next }),
     });
+  }
+
+  async function saveSlackId(stepId) {
+    setSlackError('');
+    setSlackSaving(true);
+    const res = await fetch('/api/onboarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stepId, done: true, value: slackInput }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSlackSaving(false);
+    if (!res.ok) {
+      setSlackError(data.error || 'That did not save.');
+      return;
+    }
+    setDone((cur) => new Set(cur).add(stepId));
   }
 
   async function enter() {
@@ -47,6 +67,45 @@ export default function OnboardingChecklist({ name, steps, doneIds }) {
         <div className="bordered-list" style={{ marginTop: 26 }}>
           {steps.map((step) => {
             const checked = done.has(step.id);
+
+            if (step.kind === 'SLACK_ID') {
+              return (
+                <div key={step.id} className="list-row" style={{ alignItems: 'flex-start' }}>
+                  <span className="check" style={{ display: 'contents' }}>
+                    <input type="checkbox" checked={checked} readOnly disabled />
+                    <span className="box">
+                      <Icon.check width={12} height={12} strokeWidth={2.6} />
+                    </span>
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <b>{step.title}</b>
+                    {step.description && <small>{step.description}</small>}
+                    <div className="row" style={{ marginTop: 10 }}>
+                      <input
+                        className="input"
+                        placeholder="U0123ABCDE"
+                        value={slackInput}
+                        onChange={(e) => setSlackInput(e.target.value)}
+                        style={{ maxWidth: 220 }}
+                      />
+                      <button
+                        className="btn btn-sm"
+                        type="button"
+                        disabled={!slackInput.trim() || slackSaving}
+                        onClick={() => saveSlackId(step.id)}
+                      >
+                        {checked ? 'Update' : 'Save'}
+                      </button>
+                    </div>
+                    <p className="hint" style={{ marginTop: 6, marginBottom: 0 }}>
+                      In Slack: your profile → the ••• menu → Copy member ID.
+                    </p>
+                    {slackError && <p className="error-line" style={{ marginTop: 6 }}>{slackError}</p>}
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <label key={step.id} className="list-row" style={{ cursor: 'pointer' }}>
                 <span className="check" style={{ display: 'contents' }}>

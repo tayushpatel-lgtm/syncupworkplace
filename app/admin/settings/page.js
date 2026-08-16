@@ -66,7 +66,7 @@ export default async function SettingsPage() {
         botTokenSet={!!settings.slackBotToken}
         sheetsKeySet={!!settings.sheetsPrivateKey}
         cronConfigured={!!process.env.CRON_SECRET}
-        steps={steps.map((s) => ({ id: s.id, title: s.title, description: s.description || '' }))}
+        steps={steps.map((s) => ({ id: s.id, title: s.title, description: s.description || '', kind: s.kind }))}
         tokens={tokens.map((t) => ({
           id: t.id,
           name: t.name,

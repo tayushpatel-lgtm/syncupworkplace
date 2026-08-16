@@ -62,6 +62,14 @@ enum McpScope {
   READ_WRITE
 }
 
+enum OnboardingStepKind {
+  /// A plain checkbox — the person self-attests it's done.
+  CHECK
+  /// A text field for their Slack member ID, so DMs work from day one without
+  /// waiting on the email-lookup fallback.
+  SLACK_ID
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -161,10 +169,11 @@ model Settings {
 }
 
 model OnboardingStep {
-  id          String  @id @default(cuid())
+  id          String             @id @default(cuid())
   title       String
   description String?
-  order       Int     @default(0)
+  order       Int                @default(0)
+  kind        OnboardingStepKind @default(CHECK)
 
   progress OnboardingProgress[]
 }
