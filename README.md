@@ -148,11 +148,19 @@ Everything on `/admin/settings` is enforced server-side, not just in the UI.
 | Slack webhook / bot | Channel and DM notifications — see [Slack](#slack) |
 | Google Sheets credentials | Whether the backup sync can run — see [Google Sheets backup](#google-sheets-backup) |
 
-People are added, deactivated, and have their password reset — including
-generating one — from `/admin/people`, which is also where their employment
-type (full-time, intern, freelancer) is set — see [Leave](#leave) for what
-that controls. Only the CEO can touch another CEO's role, active state, or
-password; any admin can manage everyone else.
+People are added from the form at the top of `/admin/people`. Everything
+else about someone — name, title, department, role, employment type,
+check-in time, minimum hours, password — lives behind **clicking their row**,
+which opens a popup holding the lot. There are enough fields per person that
+putting a control in every cell made the table unreadable and saved each
+change on its own; the popup edits a working copy instead and sends **only
+what actually moved**, in one request, when you hit Save.
+
+Employment type is the field that sets their leave policy — see
+[Leave](#leave). Only the CEO can touch another CEO's role, active state, or
+password; any admin can manage everyone else. Nobody can change their own
+role or deactivate themselves, so those two controls are disabled on your own
+row rather than failing after the fact.
 
 Everyone starts with their email address as both their username and their
 password, and is sent straight to a "set your own password" screen on first
@@ -160,8 +168,8 @@ login — before onboarding, before anything — so nobody keeps a password
 someone else picked. The same happens after an admin resets a password by
 hand: it forces a change again next time, the same as a first login.
 
-The **change password** switch on each row of `/admin/people` does the same
-thing directly, without setting a new password for them — flip it on and
+The **change password on next sign-in** switch inside a person's popup does
+the same thing without setting a new password for them — flip it on and
 they're sent to that screen next time they sign in; flip it off and they're
 not. It clears itself automatically once they do change it. Anyone can also
 change their own password whenever they like, forced or not, from

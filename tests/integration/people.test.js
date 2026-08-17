@@ -83,6 +83,66 @@ describe('people management', () => {
     expect(row.employmentType).toBe('FREELANCER');
   });
 
+  it('saves every field of the edit popup in a single request', async () => {
+    const person = await createPerson(ceoCookie);
+    const res = await api(`/api/people/${person.id}`, {
+      method: 'PATCH',
+      cookie: ceoCookie,
+      body: {
+        name: 'Renamed Person',
+        title: 'Designer',
+        department: 'Design',
+        employmentType: 'INTERN',
+        role: 'ADMIN',
+        checkInBy: '10:30',
+        minPresentMinutes: 300,
+        mustChangePassword: true,
+      },
+    });
+    expect(res.status).toBe(200);
+
+    const row = await testDb.user.findUnique({ where: { id: person.id } });
+    expect(row.name).toBe('Renamed Person');
+    expect(row.title).toBe('Designer');
+    expect(row.department).toBe('Design');
+    expect(row.employmentType).toBe('INTERN');
+    expect(row.role).toBe('ADMIN');
+    expect(row.checkInBy).toBe('10:30');
+    expect(row.minPresentMinutes).toBe(300);
+    expect(row.mustChangePassword).toBe(true);
+  });
+
+  it('clears check-in and min-hours back to the company default when the popup leaves them blank', async () => {
+    const person = await createPerson(ceoCookie, { checkInBy: '11:00', minPresentMinutes: 300 });
+
+    // The popup sends '' for a blank time and null for a blank number.
+    const res = await api(`/api/people/${person.id}`, {
+      method: 'PATCH',
+      cookie: ceoCookie,
+      body: { checkInBy: '', minPresentMinutes: null },
+    });
+    expect(res.status).toBe(200);
+
+    const row = await testDb.user.findUnique({ where: { id: person.id } });
+    expect(row.checkInBy).toBeNull();
+    expect(row.minPresentMinutes).toBeNull();
+  });
+
+  it('lets you edit your own row as long as the role is left alone', async () => {
+    // The popup only sends fields that actually changed, and disables the role
+    // select on your own row — so a self-edit never trips the self-role guard.
+    const res = await api(`/api/people/${ceoId}`, {
+      method: 'PATCH',
+      cookie: ceoCookie,
+      body: { title: 'Chief Executive' },
+    });
+    expect(res.status).toBe(200);
+
+    const row = await testDb.user.findUnique({ where: { id: ceoId } });
+    expect(row.title).toBe('Chief Executive');
+    expect(row.role).toBe('CEO');
+  });
+
   it('can toggle mustChangePassword directly, on and back off, without touching the password itself', async () => {
     const person = await createPerson(ceoCookie);
     const before = await testDb.user.findUnique({ where: { id: person.id } });

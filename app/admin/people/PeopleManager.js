@@ -17,6 +17,9 @@ const EMPLOYMENT_TYPES = [
   ['FREELANCER', 'Freelancer'],
 ];
 
+const ROLE_LABEL = Object.fromEntries(ROLES);
+const EMPLOYMENT_LABEL = Object.fromEntries(EMPLOYMENT_TYPES);
+
 const BLANK = {
   name: '',
   email: '',
@@ -66,13 +69,21 @@ export default function PeopleManager({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const [resetting, setResetting] = useState(null); // the person whose password is being set
+
+  // The person being edited, a working copy of their fields, and which face of
+  // the modal is showing — the password flow reuses the same panel rather than
+  // stacking a second modal on top of the first.
+  const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [view, setView] = useState('edit');
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [actionBusy, setActionBusy] = useState('');
+  const [editError, setEditError] = useState('');
+
   const [pw, setPw] = useState('');
   const [pwSaved, setPwSaved] = useState(false);
   const [pwError, setPwError] = useState('');
   const [pwBusy, setPwBusy] = useState(false);
-  const [rowBusy, setRowBusy] = useState('');
-  const [pwToggleBusy, setPwToggleBusy] = useState('');
 
   async function add(e) {
     e.preventDefault();
@@ -95,47 +106,105 @@ export default function PeopleManager({
     router.refresh();
   }
 
-  async function patch(id, body, message) {
-    setError('');
-    setNotice('');
+  async function patch(id, body) {
     const res = await fetch(`/api/people/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setError(data.error || 'Could not save that.');
-      return false;
-    }
-    if (message) setNotice(message);
-    router.refresh();
-    return true;
+    if (!res.ok) return { ok: false, error: data.error || 'Could not save that.' };
+    return { ok: true };
   }
 
-  function openReset(person) {
-    setResetting(person);
+  function open(person) {
+    setEditing(person);
+    setDraft({ ...person });
+    setView('edit');
+    setEditError('');
+    setPwSaved(false);
+    setPwError('');
+    setError('');
+    setNotice('');
+  }
+
+  function close() {
+    setEditing(null);
+    setDraft(null);
+  }
+
+  /** Only what actually moved — so saving never re-sends a field the API would reject. */
+  function changedFields() {
+    const out = {};
+    if (draft.name !== editing.name) out.name = draft.name;
+    if (draft.department !== editing.department) out.department = draft.department;
+    if (draft.title !== editing.title) out.title = draft.title;
+    if (draft.role !== editing.role) out.role = draft.role;
+    if (draft.employmentType !== editing.employmentType) out.employmentType = draft.employmentType;
+    if (draft.checkInBy !== editing.checkInBy) out.checkInBy = draft.checkInBy;
+    if (draft.minPresentMinutes !== editing.minPresentMinutes) {
+      out.minPresentMinutes =
+        draft.minPresentMinutes === '' ? null : Number(draft.minPresentMinutes);
+    }
+    if (draft.mustChangePassword !== editing.mustChangePassword) {
+      out.mustChangePassword = draft.mustChangePassword;
+    }
+    return out;
+  }
+
+  async function save(e) {
+    e.preventDefault();
+    const body = changedFields();
+    if (Object.keys(body).length === 0) {
+      close();
+      return;
+    }
+    setSaveBusy(true);
+    setEditError('');
+    const res = await patch(editing.id, body);
+    setSaveBusy(false);
+    if (!res.ok) {
+      setEditError(res.error);
+      return;
+    }
+    setNotice(`Saved ${draft.name}.`);
+    close();
+    router.refresh();
+  }
+
+  async function toggleActive() {
+    setActionBusy('active');
+    setEditError('');
+    const res = await patch(editing.id, { active: !editing.active });
+    setActionBusy('');
+    if (!res.ok) {
+      setEditError(res.error);
+      return;
+    }
+    setNotice(editing.active ? `${editing.name} can no longer sign in.` : `${editing.name} is back.`);
+    close();
+    router.refresh();
+  }
+
+  function openPassword() {
     setPw(generatePassword());
     setPwSaved(false);
     setPwError('');
+    setView('password');
   }
 
   async function submitReset(e) {
     e.preventDefault();
     setPwError('');
     setPwBusy(true);
-    const res = await fetch(`/api/people/${resetting.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw }),
-    });
-    const data = await res.json().catch(() => ({}));
+    const res = await patch(editing.id, { password: pw });
     setPwBusy(false);
     if (!res.ok) {
-      setPwError(data.error || 'Could not set that password.');
+      setPwError(res.error);
       return;
     }
     setPwSaved(true);
+    router.refresh();
   }
 
   return (
@@ -253,139 +322,42 @@ export default function PeopleManager({
       </section>
 
       <section className="card">
+        <p className="hint" style={{ marginTop: 0 }}>
+          Click anyone to edit their details.
+        </p>
         <table className="table">
           <thead>
             <tr>
               <th>PERSON</th>
               <th>DEPARTMENT</th>
-              <th>EMPLOYMENT</th>
               <th>ROLE</th>
+              <th>EMPLOYMENT</th>
               <th>CHECK-IN BY</th>
-              <th>MIN HOURS</th>
               <th className="right">OPEN TASKS</th>
-              <th>CHANGE PASSWORD</th>
-              <th className="right" />
             </tr>
           </thead>
           <tbody>
             {people.map((p) => (
-              <tr key={p.id} style={p.active ? undefined : { opacity: 0.5 }}>
+              <tr
+                key={p.id}
+                className="row-link"
+                onClick={() => open(p)}
+                style={p.active ? undefined : { opacity: 0.5 }}
+              >
                 <td>
                   <Person name={p.name} sub={p.email} />
                 </td>
-                <td>
-                  <DepartmentSelect
-                    value={p.department}
-                    departments={departments}
-                    onChange={(e) => patch(p.id, { department: e.target.value })}
-                    style={{ padding: '7px 10px', width: 'auto' }}
-                  />
-                </td>
-                <td>
-                  <select
-                    className="select"
-                    value={p.employmentType}
-                    onChange={(e) => patch(p.id, { employmentType: e.target.value })}
-                    style={{ padding: '7px 10px', width: 'auto' }}
-                  >
-                    {EMPLOYMENT_TYPES.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <select
-                    className="select"
-                    value={p.role}
-                    disabled={p.id === currentUserId}
-                    onChange={(e) => patch(p.id, { role: e.target.value })}
-                    style={{ padding: '7px 10px', width: 'auto' }}
-                  >
-                    {ROLES.filter(([value]) => isCeo || value !== 'CEO').map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <input
-                    className="input"
-                    type="time"
-                    value={p.checkInBy || defaultCheckInBy}
-                    onChange={(e) => patch(p.id, { checkInBy: e.target.value })}
-                    style={{ padding: '7px 10px', width: 130 }}
-                  />
-                </td>
-                <td>
-                  <input
-                    className="input"
-                    type="number"
-                    min={30}
-                    max={720}
-                    step={15}
-                    value={p.minPresentMinutes === '' ? defaultMinPresentMinutes : p.minPresentMinutes}
-                    onChange={(e) => patch(p.id, { minPresentMinutes: Number(e.target.value) })}
-                    style={{ padding: '7px 10px', width: 90 }}
-                    title="Minutes worked to count as present"
-                  />
-                </td>
+                <td className="muted">{p.department || '—'}</td>
+                <td>{ROLE_LABEL[p.role]}</td>
+                <td className="muted">{EMPLOYMENT_LABEL[p.employmentType]}</td>
+                <td className="num muted">{p.checkInBy || defaultCheckInBy}</td>
                 <td className="num right">
-                  <span className={`chip ${p.openTasks >= assignmentCap ? 'red' : ''}`}>
-                    {p.openTasks}
-                  </span>
-                </td>
-                <td>
-                  <Switch
-                    checked={p.mustChangePassword}
-                    disabled={pwToggleBusy === p.id}
-                    title={
-                      p.mustChangePassword
-                        ? `${p.name} will be asked to set a new password next time they sign in`
-                        : `Turn on to make ${p.name} set a new password next time they sign in`
-                    }
-                    onChange={async (next) => {
-                      setPwToggleBusy(p.id);
-                      await patch(
-                        p.id,
-                        { mustChangePassword: next },
-                        next ? `${p.name} will change their password next login.` : `Back to normal for ${p.name}.`,
-                      );
-                      setPwToggleBusy('');
-                    }}
-                  />
-                </td>
-                <td className="right">
-                  <div className="row end" style={{ gap: 6 }}>
-                    <button className="btn btn-sm" onClick={() => openReset(p)}>
-                      <Icon.key width={13} height={13} />
-                      Password
-                    </button>
-                    <button
-                      className={`btn-icon ${p.active ? 'danger' : ''}`}
-                      title={p.active ? 'Deactivate' : 'Reactivate'}
-                      aria-label={p.active ? 'Deactivate' : 'Reactivate'}
-                      disabled={p.id === currentUserId || rowBusy === p.id}
-                      onClick={async () => {
-                        setRowBusy(p.id);
-                        await patch(
-                          p.id,
-                          { active: !p.active },
-                          p.active ? `${p.name} can no longer sign in.` : `${p.name} is back.`,
-                        );
-                        setRowBusy('');
-                      }}
-                    >
-                      {rowBusy === p.id ? (
-                        <Icon.spinner width={14} height={14} />
-                      ) : p.active ? (
-                        <Icon.trash width={14} height={14} />
-                      ) : (
-                        <Icon.play width={14} height={14} />
-                      )}
-                    </button>
+                  <div className="row end" style={{ gap: 8 }}>
+                    {!p.active && <span className="chip">inactive</span>}
+                    {p.mustChangePassword && <span className="chip amber">new password due</span>}
+                    <span className={`chip ${p.openTasks >= assignmentCap ? 'red' : ''}`}>
+                      {p.openTasks}
+                    </span>
                   </div>
                 </td>
               </tr>
@@ -395,12 +367,178 @@ export default function PeopleManager({
       </section>
 
       <Modal
-        open={!!resetting}
-        onClose={() => setResetting(null)}
-        title={resetting ? `Set a password for ${resetting.name}` : 'Set a password'}
+        open={!!editing && view === 'edit'}
+        onClose={close}
+        title={editing ? editing.name : ''}
+        description={editing ? editing.email : ''}
+        wide
+      >
+        {editing && draft && (
+          <form onSubmit={save}>
+            <div className="grid-2" style={{ gap: 18 }}>
+              <div>
+                <label className="field-label">NAME</label>
+                <input
+                  className="input"
+                  value={draft.name}
+                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="field-label">TITLE</label>
+                <input
+                  className="input"
+                  value={draft.title}
+                  onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                  placeholder="Developer"
+                />
+              </div>
+            </div>
+
+            <div className="grid-2" style={{ gap: 18, marginTop: 18 }}>
+              <div>
+                <label className="field-label">DEPARTMENT</label>
+                <DepartmentSelect
+                  value={draft.department}
+                  departments={departments}
+                  onChange={(e) => setDraft({ ...draft, department: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="field-label">EMPLOYMENT</label>
+                <select
+                  className="select"
+                  value={draft.employmentType}
+                  onChange={(e) => setDraft({ ...draft, employmentType: e.target.value })}
+                >
+                  {EMPLOYMENT_TYPES.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <p className="hint" style={{ fontSize: 12 }}>
+                  Sets their leave policy.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid-3" style={{ gap: 18, marginTop: 18 }}>
+              <div>
+                <label className="field-label">ROLE</label>
+                <select
+                  className="select"
+                  value={draft.role}
+                  disabled={editing.id === currentUserId}
+                  onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+                >
+                  {ROLES.filter(([value]) => isCeo || value !== 'CEO').map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                {editing.id === currentUserId && (
+                  <p className="hint" style={{ fontSize: 12 }}>
+                    You cannot change your own role.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="field-label">CHECK-IN BY</label>
+                <input
+                  className="input"
+                  type="time"
+                  value={draft.checkInBy}
+                  onChange={(e) => setDraft({ ...draft, checkInBy: e.target.value })}
+                />
+                <p className="hint" style={{ fontSize: 12 }}>
+                  Blank uses {defaultCheckInBy}.
+                </p>
+              </div>
+              <div>
+                <label className="field-label">MIN HOURS</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={30}
+                  max={720}
+                  step={15}
+                  value={draft.minPresentMinutes}
+                  onChange={(e) => setDraft({ ...draft, minPresentMinutes: e.target.value })}
+                  placeholder={String(defaultMinPresentMinutes)}
+                />
+                <p className="hint" style={{ fontSize: 12 }}>
+                  Minutes. Blank uses {defaultMinPresentMinutes}.
+                </p>
+              </div>
+            </div>
+
+            <div className="divider" />
+
+            <div className="row" style={{ gap: 13, alignItems: 'flex-start' }}>
+              <Switch
+                checked={draft.mustChangePassword}
+                onChange={(next) => setDraft({ ...draft, mustChangePassword: next })}
+                title="Force a new password on their next sign-in"
+              />
+              <div>
+                <b style={{ fontSize: 15, fontWeight: 500 }}>Change password on next sign-in</b>
+                <small style={{ display: 'block', marginTop: 4, color: 'var(--muted)', lineHeight: 1.5 }}>
+                  They land on a &quot;set your own password&quot; screen before anything else. Clears
+                  itself once they do.
+                </small>
+              </div>
+            </div>
+
+            <div className="divider" />
+
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <div className="row" style={{ gap: 8 }}>
+                <button type="button" className="btn btn-sm" onClick={openPassword}>
+                  <Icon.key width={13} height={13} />
+                  Set a password
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${editing.active ? 'btn-danger' : ''}`}
+                  disabled={editing.id === currentUserId || actionBusy === 'active'}
+                  onClick={toggleActive}
+                  title={
+                    editing.id === currentUserId
+                      ? 'You cannot deactivate yourself'
+                      : editing.active
+                        ? 'Stop them signing in'
+                        : 'Let them sign in again'
+                  }
+                >
+                  {actionBusy === 'active' && <Icon.spinner width={13} height={13} />}
+                  {editing.active ? 'Deactivate' : 'Reactivate'}
+                </button>
+              </div>
+              <div className="row" style={{ gap: 8 }}>
+                <button type="button" className="btn" onClick={close}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary" type="submit" disabled={saveBusy}>
+                  {saveBusy && <Icon.spinner width={14} height={14} />}
+                  {saveBusy ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </div>
+            {editError && <p className="error-line">{editError}</p>}
+          </form>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!editing && view === 'password'}
+        onClose={close}
+        title={editing ? `Set a password for ${editing.name}` : 'Set a password'}
         description="They'll need this the next time they sign in, and will be asked to set their own right after. Share it with them directly — it isn't shown again after you close this."
       >
-        {resetting && (
+        {editing && (
           <form onSubmit={submitReset}>
             <label className="field-label">PASSWORD</label>
             <div className="row" style={{ gap: 8 }}>
@@ -438,19 +576,24 @@ export default function PeopleManager({
               </button>
             </div>
 
-            <div className="row end" style={{ marginTop: 20 }}>
+            <div className="row end" style={{ marginTop: 20, gap: 8 }}>
               {pwSaved ? (
-                <button type="button" className="btn" onClick={() => setResetting(null)}>
+                <button type="button" className="btn" onClick={close}>
                   Done
                 </button>
               ) : (
-                <button className="btn btn-primary" type="submit" disabled={pw.length < 8 || pwBusy}>
-                  {pwBusy && <Icon.spinner width={14} height={14} />}
-                  {pwBusy ? 'Setting…' : 'Set password'}
-                </button>
+                <>
+                  <button type="button" className="btn" onClick={() => setView('edit')}>
+                    Back
+                  </button>
+                  <button className="btn btn-primary" type="submit" disabled={pw.length < 8 || pwBusy}>
+                    {pwBusy && <Icon.spinner width={14} height={14} />}
+                    {pwBusy ? 'Setting…' : 'Set password'}
+                  </button>
+                </>
               )}
             </div>
-            {pwSaved && <p className="notice-line">Saved. Copy it now and send it to {resetting.name}.</p>}
+            {pwSaved && <p className="notice-line">Saved. Copy it now and send it to {editing.name}.</p>}
             {pwError && <p className="error-line">{pwError}</p>}
           </form>
         )}

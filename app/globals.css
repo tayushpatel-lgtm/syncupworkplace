@@ -783,6 +783,24 @@ a {
   text-align: right;
 }
 
+/* A whole row that opens something — the cell content stays plain text, so the
+   row has to signal on its own that it is worth clicking. */
+.table tr.row-link {
+  cursor: pointer;
+}
+
+.table tr.row-link:hover td {
+  background: var(--hover);
+}
+
+.table tr.row-link td:first-child {
+  border-left: 2px solid transparent;
+}
+
+.table tr.row-link:hover td:first-child {
+  border-left-color: var(--ink);
+}
+
 .table-card {
   background: var(--paper);
   border: 1px solid var(--line);
