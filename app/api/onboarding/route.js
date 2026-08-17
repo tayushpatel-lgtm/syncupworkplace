@@ -1,7 +1,6 @@
 import { prisma } from '../../../lib/db';
 import { apiUser } from '../../../lib/auth';
-
-const SLACK_ID_PATTERN = /^[UW][A-Z0-9]{6,}$/i;
+import { SLACK_ID_PATTERN } from '../../../lib/slack';
 
 export async function POST(request) {
   const { user, error } = await apiUser();

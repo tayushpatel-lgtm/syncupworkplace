@@ -10,16 +10,18 @@ layout — there is no phone version, by design.
 
 1. Someone arrives and **checks in**. Their arrival is stamped against their own
    deadline, and a late arrival is recorded as late.
-2. Their **plan for the day** opens with every open task assigned to them, plus
-   anything they left unfinished on the last working day. If it's empty, the day
-   doesn't start until at least one point is added — that's the plan.
+2. A popup opens with their **plan for the day** — every open task assigned to
+   them, plus anything left unfinished on the last working day, ready to tick
+   off, drop, or add to. The day doesn't actually start — Slack included —
+   until at least one point survives that popup.
 3. **Anyone can assign a task to anyone.** It lands on that person's plan the same
    day, subject to the per-person assignment cap.
 4. Points get **ticked off** through the day. Ticking a point that came from a task
    moves the task on the board too — the two never disagree, so whatever is
    already completed reaches the report without re-doing the work.
-5. At the end, they **file the report**. The app composes it from the day's real
-   data; the only thing anyone types is what it added up to.
+5. They **check out** through a second popup: a last pass to tick off whatever's
+   done, plus a line for anything that isn't on the list at all. That becomes
+   the report — the app composes the rest from the day's real data.
 6. Whatever is still open **carries to the next working day**.
 
 Whether a day counts as **present** isn't just "did they check in" — it's checked
@@ -159,7 +161,10 @@ Channel-only; Slack webhooks cannot DM anyone.
 
 Channel events, each its own toggle: check-in, check-out, and an end-of-day
 summary — who was present, who wasn't, which task-linked plan points never
-got ticked.
+got ticked. Check-in and check-out carry real content, not just a
+timestamp — check-in posts the plan the person just confirmed in the popup;
+check-out posts what they ticked off plus whatever they noted wasn't on the
+list.
 
 Personal DMs, gated by a master switch plus one toggle each. Four mirror a
 channel event straight to the one person it's actually about — easy to miss
@@ -181,13 +186,15 @@ Four more that only ever exist as a DM, nothing posted to the channel:
 The end-of-day summary stays channel-only — it's about the whole team at
 once, not one person, so there's no single "you" to mirror it to.
 
-DMs need a Slack account resolved for the person, which happens one of two
-ways: automatically the first time, via `users.lookupByEmail`; or up front,
+DMs need a Slack account resolved for the person, which happens one of three
+ways: automatically the first time, via `users.lookupByEmail`; up front,
 during onboarding, if the "Slack ID" step is in their checklist (see
-[Onboarding checklist](#onboarding-checklist)). Either way it's cached on the
-person's row. Set up the bot from api.slack.com/apps → OAuth & Permissions → add the scopes →
-Install to Workspace; the channel needs its ID (not its name), from the
-channel's "View channel details".
+[Onboarding checklist](#onboarding-checklist)); or any time after, from their
+own `/account` page — useful for anyone already onboarded before the "Slack
+ID" step existed for them, since onboarding only ever runs once. Either way
+it's cached on the person's row. Set up the bot from api.slack.com/apps →
+OAuth & Permissions → add the scopes → Install to Workspace; the channel
+needs its ID (not its name), from the channel's "View channel details".
 
 Deadline reminders run once a day: due tomorrow, due today, then once a day
 while a task stays late. The scheduled runs are at `/api/cron/reminders` and

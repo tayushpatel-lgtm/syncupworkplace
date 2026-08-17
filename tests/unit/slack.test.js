@@ -20,12 +20,24 @@ describe('Slack bot message builders', () => {
 
     const late = checkInMessage({ name: 'Deepak' }, true);
     expect(late.text).toMatch(/late/);
-    expect(late.blocks[0].elements[0].text).toMatch(/late/);
+    expect(late.blocks[0].text.text).toMatch(/late/);
   });
 
-  it('reports the hours worked on check-out', () => {
-    const msg = checkOutMessage({ name: 'Chhavi' }, 150);
-    expect(msg.blocks[0].elements[0].text).toContain('2.5h');
+  it('includes the plan of the day in the channel check-in post, when given one', () => {
+    const withPlan = checkInMessage({ name: 'Deepak' }, false, ['Ship the report', 'Review PRs']);
+    expect(withPlan.blocks[1].elements[0].text).toContain('Plan for today');
+    expect(withPlan.blocks[1].elements[0].text).toContain('• Ship the report');
+    expect(withPlan.blocks[1].elements[0].text).toContain('• Review PRs');
+
+    const withoutPlan = checkInMessage({ name: 'Deepak' }, false);
+    expect(withoutPlan.blocks).toHaveLength(1);
+  });
+
+  it('reports the hours worked on check-out, plus what got done', () => {
+    const msg = checkOutMessage({ name: 'Chhavi' }, 150, ['Ship the report'], 'Also fixed the deploy.');
+    expect(msg.blocks[0].text.text).toContain('2.5h');
+    expect(msg.blocks[1].elements[0].text).toContain('• Ship the report');
+    expect(msg.blocks[2].elements[0].text).toContain('Also fixed the deploy.');
   });
 
   it('lists present, absent and not-picked-up tasks in the EOD summary', () => {
@@ -79,13 +91,21 @@ describe('Slack bot message builders', () => {
     expect(onTime.text).not.toMatch(/late/);
     const late = checkInDm(true);
     expect(late.text).toMatch(/late/);
-    expect(late.blocks[0].elements[0].text).toContain('You checked in');
+    expect(late.blocks[0].text.text).toContain('You checked in');
   });
 
-  it('reports hours worked in the personal check-out DM', () => {
-    const dm = checkOutDm(150);
-    expect(dm.blocks[0].elements[0].text).toContain('You checked out');
-    expect(dm.blocks[0].elements[0].text).toContain('2.5h');
+  it('includes the plan of the day in the personal check-in DM, when given one', () => {
+    const dm = checkInDm(false, ['Ship the report']);
+    expect(dm.blocks[1].elements[0].text).toContain('Your plan for today');
+    expect(dm.blocks[1].elements[0].text).toContain('• Ship the report');
+  });
+
+  it('reports hours worked, plus what got done, in the personal check-out DM', () => {
+    const dm = checkOutDm(150, ['Ship the report'], 'Also fixed the deploy.');
+    expect(dm.blocks[0].text.text).toContain('You checked out');
+    expect(dm.blocks[0].text.text).toContain('2.5h');
+    expect(dm.blocks[1].elements[0].text).toContain('• Ship the report');
+    expect(dm.blocks[2].elements[0].text).toContain('Also fixed the deploy.');
   });
 
   it('frames a status-change DM around "your task", not a named assignee', () => {

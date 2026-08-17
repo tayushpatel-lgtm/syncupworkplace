@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '../components/Icons';
-import { PageHead, Card, Empty } from '../components/ui';
+import { PageHead, Card, Empty, Modal } from '../components/ui';
 
 const HEARTBEAT_MS = 60_000;
 
@@ -19,6 +19,129 @@ function short(minutes) {
   const m = Math.max(0, Math.round(minutes));
   const h = Math.floor(m / 60);
   return h > 0 ? `${h}h ${m % 60}m` : `${m}m`;
+}
+
+/** The popup that stands between "check in" and actually starting the day: tick off what's
+ * already on your plate, drop what you won't get to, add whatever else. Nothing about the day
+ * — the Slack post included — goes out until this is confirmed with at least one point left. */
+function CheckInPopup({ items, setItems, draft, setDraft, busy, error, onConfirm, onClose }) {
+  const kept = items.filter((i) => i.keep).length;
+
+  function toggle(id) {
+    setItems((cur) => cur.map((i) => (i.id === id ? { ...i, keep: !i.keep } : i)));
+  }
+
+  function addDraft(e) {
+    e.preventDefault();
+    const title = draft.trim();
+    if (!title) return;
+    setItems((cur) => [...cur, { id: `new-${cur.length}-${Date.now()}`, title, keep: true, isNew: true }]);
+    setDraft('');
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="What's the plan for today?"
+      description="Tick what you're actually doing, drop what you're not, add anything else. This is what goes out to Slack when you start the day."
+    >
+      <div className="bordered-list">
+        {items.length === 0 && <p className="empty">Nothing on your plate yet — add a point below.</p>}
+        {items.map((item) => (
+          <label key={item.id} className="list-row" style={{ cursor: 'pointer' }}>
+            <span className="check" style={{ display: 'contents' }}>
+              <input type="checkbox" checked={item.keep} onChange={() => toggle(item.id)} />
+              <span className="box">
+                <Icon.check width={12} height={12} strokeWidth={2.6} />
+              </span>
+            </span>
+            <span>{item.title}</span>
+          </label>
+        ))}
+      </div>
+
+      <form className="plan-add" style={{ marginTop: 16 }} onSubmit={addDraft}>
+        <input
+          className="input"
+          placeholder="Add something else you're doing today"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          autoFocus
+        />
+        <button className="btn" type="submit" disabled={!draft.trim()}>
+          <Icon.plus width={15} height={15} />
+          Add
+        </button>
+      </form>
+
+      {error && <p className="error-line">{error}</p>}
+
+      <div className="row end" style={{ marginTop: 20 }}>
+        <button className="btn btn-primary" onClick={onConfirm} disabled={kept === 0 || busy}>
+          {busy ? <Icon.spinner width={15} height={15} /> : <Icon.check width={15} height={15} />}
+          {busy ? 'Starting…' : 'Start my day'}
+        </button>
+      </div>
+      {kept === 0 && <p className="hint" style={{ marginTop: 10 }}>Keep or add at least one point to start the day.</p>}
+    </Modal>
+  );
+}
+
+/** The popup that stands between "check out" and the day actually closing: a last pass to tick
+ * off anything you finished, plus a line for whatever isn't on the list at all. */
+function CheckOutPopup({ items, setItems, notes, setNotes, reportRequired, busy, error, onConfirm, onClose }) {
+  function toggle(id) {
+    setItems((cur) => cur.map((i) => (i.id === id ? { ...i, done: !i.done } : i)));
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Wrapping up?"
+      description="Tick off anything you finished, and note whatever isn't on the list. This goes out to Slack as today's end-of-day."
+    >
+      <div className="bordered-list">
+        {items.length === 0 && <p className="empty">Nothing was on today's plan.</p>}
+        {items.map((item) => (
+          <label key={item.id} className="list-row" style={{ cursor: 'pointer' }}>
+            <span className="check" style={{ display: 'contents' }}>
+              <input type="checkbox" checked={item.done} onChange={() => toggle(item.id)} />
+              <span className="box">
+                <Icon.check width={12} height={12} strokeWidth={2.6} />
+              </span>
+            </span>
+            <span>{item.title}</span>
+          </label>
+        ))}
+      </div>
+
+      <label className="field-label" style={{ marginTop: 18 }}>
+        ANYTHING ELSE YOU DID — {reportRequired ? 'REQUIRED' : 'OPTIONAL'}
+      </label>
+      <textarea
+        className="textarea"
+        placeholder="A few lines on what moved today, and what is in the way."
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        autoFocus
+      />
+
+      {error && <p className="error-line">{error}</p>}
+
+      <div className="row end" style={{ marginTop: 18 }}>
+        <button
+          className="btn btn-primary"
+          onClick={onConfirm}
+          disabled={busy || (reportRequired && !notes.trim())}
+        >
+          {busy ? <Icon.spinner width={15} height={15} /> : <Icon.check width={15} height={15} />}
+          {busy ? 'Ending…' : 'End my day'}
+        </button>
+      </div>
+    </Modal>
+  );
 }
 
 export default function MyDay(props) {
@@ -46,6 +169,16 @@ export default function MyDay(props) {
   const [error, setError] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const addRef = useRef(null);
+
+  const [checkInItems, setCheckInItems] = useState(null); // null = popup closed
+  const [checkInDraft, setCheckInDraft] = useState('');
+  const [checkInError, setCheckInError] = useState('');
+  const [checkInBusy, setCheckInBusy] = useState(false);
+
+  const [checkOutItems, setCheckOutItems] = useState(null); // null = popup closed
+  const [checkOutNotes, setCheckOutNotes] = useState('');
+  const [checkOutError, setCheckOutError] = useState('');
+  const [checkOutBusy, setCheckOutBusy] = useState(false);
 
   // The live clock. It starts from what the server counted and ticks on from there,
   // so the first paint matches the server exactly and never flashes a wrong number.
@@ -104,6 +237,82 @@ export default function MyDay(props) {
     addRef.current?.focus();
   }
 
+  // ---------------------------------------------------------------- Check-in popup
+
+  async function startCheckIn() {
+    setBusy('in');
+    setError('');
+    const res = await fetch('/api/day/check-in', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    setBusy('');
+    if (!res.ok) {
+      setError(data.error || 'Something went wrong.');
+      return;
+    }
+    setCheckInItems(data.plan.map((p) => ({ ...p, keep: true, isNew: false })));
+    setCheckInDraft('');
+    setCheckInError('');
+  }
+
+  async function confirmCheckIn() {
+    setCheckInBusy(true);
+    setCheckInError('');
+    for (const item of checkInItems) {
+      if (item.isNew) {
+        await fetch('/api/day/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'add', title: item.title }),
+        });
+      } else if (!item.keep) {
+        await fetch('/api/day/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'dismiss', id: item.id }),
+        });
+      }
+    }
+    const res = await fetch('/api/day/check-in/confirm', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    setCheckInBusy(false);
+    if (!res.ok) {
+      setCheckInError(data.error || 'Something went wrong.');
+      return;
+    }
+    setCheckInItems(null);
+    router.refresh();
+  }
+
+  // ---------------------------------------------------------------- Check-out popup
+
+  function openCheckOut() {
+    setCheckOutItems(plan.map((p) => ({ id: p.id, title: p.title, done: p.done })));
+    setCheckOutNotes(summary);
+    setCheckOutError('');
+  }
+
+  async function confirmCheckOut() {
+    setCheckOutBusy(true);
+    setCheckOutError('');
+    const res = await fetch('/api/day/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        summary: checkOutNotes,
+        closeDay: true,
+        doneIds: checkOutItems.filter((i) => i.done).map((i) => i.id),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setCheckOutBusy(false);
+    if (!res.ok) {
+      setCheckOutError(data.error || 'Something went wrong.');
+      return;
+    }
+    setCheckOutItems(null);
+    router.refresh();
+  }
+
   const composed = useMemo(
     () => [
       ['Recorded work', short(totals.work)],
@@ -112,6 +321,33 @@ export default function MyDay(props) {
       ['Plan points ticked', `${donePoints} of ${plan.length}`],
     ],
     [totals.work, totals.break, totals.idle, donePoints, plan.length],
+  );
+
+  const checkInPopup = checkInItems && (
+    <CheckInPopup
+      items={checkInItems}
+      setItems={setCheckInItems}
+      draft={checkInDraft}
+      setDraft={setCheckInDraft}
+      busy={checkInBusy}
+      error={checkInError}
+      onConfirm={confirmCheckIn}
+      onClose={() => setCheckInItems(null)}
+    />
+  );
+
+  const checkOutPopup = checkOutItems && (
+    <CheckOutPopup
+      items={checkOutItems}
+      setItems={setCheckOutItems}
+      notes={checkOutNotes}
+      setNotes={setCheckOutNotes}
+      reportRequired={reportRequired}
+      busy={checkOutBusy}
+      error={checkOutError}
+      onConfirm={confirmCheckOut}
+      onClose={() => setCheckOutItems(null)}
+    />
   );
 
   // ---------------------------------------------------------------- Not a working day
@@ -127,16 +363,14 @@ export default function MyDay(props) {
               : 'Today falls outside the working week. Nothing is expected of you today.'}
           </p>
           <div className="row" style={{ marginTop: 20 }}>
-            <button
-              className="btn"
-              onClick={() => call('/api/day/check-in', {}, 'in')}
-              disabled={busy === 'in'}
-            >
+            <button className="btn" onClick={startCheckIn} disabled={busy === 'in'}>
               {busy === 'in' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
               {busy === 'in' ? 'Working…' : 'Work anyway'}
             </button>
           </div>
+          {error && <p className="error-line">{error}</p>}
         </Card>
+        {checkInPopup}
       </>
     );
   }
@@ -149,15 +383,11 @@ export default function MyDay(props) {
         <PageHead title="My day" subtitle={dayLabel} />
         <Card glyph="bolt" title={`Good to see you, ${user.name.split(' ')[0]}.`}>
           <p className="hint" style={{ marginTop: 0 }}>
-            Check in to start the day. Your plan opens with everything already assigned to you, and
-            anything you left unfinished yesterday.
+            Check in to start the day. You&apos;ll tick off what&apos;s already on your plate — and
+            add anything else — before it starts.
           </p>
           <div className="row" style={{ marginTop: 24 }}>
-            <button
-              className="btn btn-primary"
-              onClick={() => call('/api/day/check-in', {}, 'in')}
-              disabled={busy === 'in'}
-            >
+            <button className="btn btn-primary" onClick={startCheckIn} disabled={busy === 'in'}>
               {busy === 'in' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
               {busy === 'in' ? 'Checking in…' : 'Check in'}
             </button>
@@ -168,11 +398,14 @@ export default function MyDay(props) {
           </div>
           {error && <p className="error-line">{error}</p>}
         </Card>
+        {checkInPopup}
       </>
     );
   }
 
   // ---------------------------------------------------------------- Set the plan before anything else
+  // A safety net, not the normal path — the check-in popup already requires at least one
+  // point. This only ever catches a day that went empty later (everything got dropped).
 
   if (!checkedOut && plan.length === 0) {
     return (
@@ -183,7 +416,7 @@ export default function MyDay(props) {
         <Card
           glyph="clipboard"
           title="What's the plan for today?"
-          description="Add at least one point before the day gets going. This is what shows up in the swim lanes, and what tonight's report is checked against."
+          description="Add at least one point before the day continues. This is what shows up in the swim lanes, and what tonight's report is checked against."
         >
           <form className="plan-add" onSubmit={addPoint}>
             <input
@@ -253,6 +486,12 @@ export default function MyDay(props) {
             >
               {busy === 'work' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
               {running ? 'Back to work' : checkedOut ? 'Start work again' : 'Resume work'}
+            </button>
+          )}
+          {!checkedOut && (
+            <button className="btn" onClick={openCheckOut}>
+              <Icon.check width={15} height={15} />
+              Check out
             </button>
           )}
           <span className="muted" style={{ fontSize: 13.5 }}>
@@ -339,10 +578,10 @@ export default function MyDay(props) {
 
       <Card
         glyph="edit"
-        title="Close the day"
+        title="End of day"
         description="The report is composed from the day's real data. The only thing you type is what it added up to."
       >
-        <div className="grid-4" style={{ marginBottom: 22 }}>
+        <div className="grid-4" style={{ marginBottom: report || checkedOut ? 22 : 0 }}>
           {composed.map(([label, value]) => (
             <div key={label} className="stat">
               <span className="kicker">{label.toUpperCase()}</span>
@@ -351,7 +590,7 @@ export default function MyDay(props) {
           ))}
         </div>
 
-        {report ? (
+        {report && (
           <>
             <p className="notice-line" style={{ marginTop: 0 }}>
               Filed at{' '}
@@ -378,36 +617,17 @@ export default function MyDay(props) {
               </button>
             </div>
           </>
-        ) : (
-          <>
-            <label className="field-label">WHAT IT ADDED UP TO</label>
-            <textarea
-              className="textarea"
-              placeholder="A few lines on what moved today, and what is in the way."
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-            />
-            <div className="row end" style={{ marginTop: 16 }}>
-              {reportRequired && (
-                <span className="muted" style={{ fontSize: 13, marginRight: 'auto' }}>
-                  A day can&apos;t be ended without filing.
-                </span>
-              )}
-              <button
-                className="btn btn-primary"
-                onClick={async () => {
-                  const ok = await call('/api/day/report', { summary, closeDay: true }, 'report');
-                  if (!ok) return;
-                }}
-                disabled={(reportRequired && !summary.trim()) || busy === 'report'}
-              >
-                {busy === 'report' ? <Icon.spinner width={15} height={15} /> : <Icon.check width={15} height={15} />}
-                {busy === 'report' ? 'Filing…' : 'File and end the day'}
-              </button>
-            </div>
-          </>
+        )}
+
+        {!report && !checkedOut && (
+          <p className="hint" style={{ marginTop: 0 }}>
+            Click <b>Check out</b> above when you&apos;re done for the day — you&apos;ll tick off
+            what got finished and note anything else before the day closes.
+          </p>
         )}
       </Card>
+
+      {checkOutPopup}
     </>
   );
 }

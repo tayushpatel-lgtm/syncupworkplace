@@ -90,11 +90,13 @@ export default function Nav({ user, pendingLeave = 0 }) {
       )}
 
       <div className="sidebar-foot">
-        <span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>
-        <div>
-          <b>{user.name}</b>
-          <small>{user.title || user.role.toLowerCase()}</small>
-        </div>
+        <Link href="/account" style={{ display: 'contents' }} title="Your account">
+          <span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>
+          <div>
+            <b>{user.name}</b>
+            <small>{user.title || user.role.toLowerCase()}</small>
+          </div>
+        </Link>
         <button
           className="sign-out"
           onClick={signOut}
