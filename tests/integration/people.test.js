@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { api, login, loginAsCeo, createPerson, uniqueEmail, testDb } from './helpers.js';
+import { api, page, login, loginAsCeo, createPerson, uniqueEmail, testDb } from './helpers.js';
 import { FIXTURE } from './config.js';
 
 describe('people management', () => {
@@ -81,6 +81,51 @@ describe('people management', () => {
 
     const row = await testDb.user.findUnique({ where: { id: person.id } });
     expect(row.employmentType).toBe('FREELANCER');
+  });
+
+  it('can toggle mustChangePassword directly, on and back off, without touching the password itself', async () => {
+    const person = await createPerson(ceoCookie);
+    const before = await testDb.user.findUnique({ where: { id: person.id } });
+
+    const on = await api(`/api/people/${person.id}`, {
+      method: 'PATCH',
+      cookie: ceoCookie,
+      body: { mustChangePassword: true },
+    });
+    expect(on.status).toBe(200);
+    const forced = await testDb.user.findUnique({ where: { id: person.id } });
+    expect(forced.mustChangePassword).toBe(true);
+    expect(forced.passwordHash).toBe(before.passwordHash);
+
+    // They're now sent to /change-password ahead of everything else.
+    const home = await page('/', { cookie: person.cookie });
+    expect(home.status).toBe(307);
+    expect(home.location).toContain('/change-password');
+
+    const off = await api(`/api/people/${person.id}`, {
+      method: 'PATCH',
+      cookie: ceoCookie,
+      body: { mustChangePassword: false },
+    });
+    expect(off.status).toBe(200);
+    const normal = await testDb.user.findUnique({ where: { id: person.id } });
+    expect(normal.mustChangePassword).toBe(false);
+
+    const home2 = await page('/', { cookie: person.cookie });
+    expect(home2.status).toBe(200);
+  });
+
+  it('only the CEO can toggle mustChangePassword for another CEO', async () => {
+    const admin = await createPerson(ceoCookie, { role: 'ADMIN' });
+    const futureCeo = await createPerson(ceoCookie);
+    await api(`/api/people/${futureCeo.id}`, { method: 'PATCH', cookie: ceoCookie, body: { role: 'CEO' } });
+
+    const blocked = await api(`/api/people/${futureCeo.id}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { mustChangePassword: true },
+    });
+    expect(blocked.status).toBe(403);
   });
 
   it("an admin can reset a plain employee's password", async () => {

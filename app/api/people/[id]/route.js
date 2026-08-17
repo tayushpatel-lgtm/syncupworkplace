@@ -64,6 +64,13 @@ export async function PATCH(request, { params }) {
     data.active = !!body.active;
   }
 
+  if (body.mustChangePassword !== undefined) {
+    if (target.role === 'CEO' && user.role !== 'CEO') {
+      return Response.json({ error: 'Only the CEO can do that.' }, { status: 403 });
+    }
+    data.mustChangePassword = !!body.mustChangePassword;
+  }
+
   if (body.password !== undefined) {
     if (target.role === 'CEO' && user.role !== 'CEO') {
       return Response.json({ error: 'Only the CEO can reset that password.' }, { status: 403 });

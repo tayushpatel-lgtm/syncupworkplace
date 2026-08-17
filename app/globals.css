@@ -540,6 +540,56 @@ a {
   margin-top: 20px;
 }
 
+/* A small pill toggle — inline, no label attached (the row it sits in carries that). */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 21px;
+  flex: none;
+  cursor: pointer;
+}
+
+.switch.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch .track {
+  position: absolute;
+  inset: 0;
+  background: var(--line);
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.switch .track::before {
+  content: '';
+  position: absolute;
+  top: 2.5px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.switch input:checked + .track {
+  background: var(--ink);
+}
+
+.switch input:checked + .track::before {
+  transform: translateX(15px);
+}
+
 /* Day pills for the working week. */
 .day-pills {
   display: flex;

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from '../../../lib/useRouter';
 import { Icon } from '../../../components/Icons';
-import { Person, Modal } from '../../../components/ui';
+import { Person, Modal, Switch } from '../../../components/ui';
 
 const ROLES = [
   ['EMPLOYEE', 'Employee'],
@@ -72,6 +72,7 @@ export default function PeopleManager({
   const [pwError, setPwError] = useState('');
   const [pwBusy, setPwBusy] = useState(false);
   const [rowBusy, setRowBusy] = useState('');
+  const [pwToggleBusy, setPwToggleBusy] = useState('');
 
   async function add(e) {
     e.preventDefault();
@@ -262,6 +263,7 @@ export default function PeopleManager({
               <th>CHECK-IN BY</th>
               <th>MIN HOURS</th>
               <th className="right">OPEN TASKS</th>
+              <th>CHANGE PASSWORD</th>
               <th className="right" />
             </tr>
           </thead>
@@ -334,6 +336,26 @@ export default function PeopleManager({
                   <span className={`chip ${p.openTasks >= assignmentCap ? 'red' : ''}`}>
                     {p.openTasks}
                   </span>
+                </td>
+                <td>
+                  <Switch
+                    checked={p.mustChangePassword}
+                    disabled={pwToggleBusy === p.id}
+                    title={
+                      p.mustChangePassword
+                        ? `${p.name} will be asked to set a new password next time they sign in`
+                        : `Turn on to make ${p.name} set a new password next time they sign in`
+                    }
+                    onChange={async (next) => {
+                      setPwToggleBusy(p.id);
+                      await patch(
+                        p.id,
+                        { mustChangePassword: next },
+                        next ? `${p.name} will change their password next login.` : `Back to normal for ${p.name}.`,
+                      );
+                      setPwToggleBusy('');
+                    }}
+                  />
                 </td>
                 <td className="right">
                   <div className="row end" style={{ gap: 6 }}>

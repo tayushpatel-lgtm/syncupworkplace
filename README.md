@@ -160,6 +160,13 @@ login — before onboarding, before anything — so nobody keeps a password
 someone else picked. The same happens after an admin resets a password by
 hand: it forces a change again next time, the same as a first login.
 
+The **change password** switch on each row of `/admin/people` does the same
+thing directly, without setting a new password for them — flip it on and
+they're sent to that screen next time they sign in; flip it off and they're
+not. It clears itself automatically once they do change it. Anyone can also
+change their own password whenever they like, forced or not, from
+`/account`.
+
 ## Leave
 
 The policy is fixed by employment type, not admin-configurable:

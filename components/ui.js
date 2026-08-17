@@ -80,6 +80,20 @@ export function StatusChip({ status }) {
   return <span className={`chip ${STATUS_TONE[status] || ''}`}>{STATUS_LABEL[status]}</span>;
 }
 
+export function Switch({ checked, onChange, disabled = false, title }) {
+  return (
+    <label className={`switch ${disabled ? 'disabled' : ''}`} title={title}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span className="track" />
+    </label>
+  );
+}
+
 export function Empty({ children }) {
   return <p className="empty">{children}</p>;
 }
