@@ -364,6 +364,21 @@ container on every push.
 ## Deploying
 
 Vercel plus a hosted Postgres. Set `DATABASE_URL`, `SESSION_SECRET`,
-`APP_TIMEZONE` and `CRON_SECRET`, then run `npx prisma db push` against the
-production database once. `npm run build` generates the Prisma client as part of
-the build.
+`APP_TIMEZONE` and `CRON_SECRET`. That's the whole setup — there is no
+separate "run the migration" step to remember.
+
+The build is `prisma db push && prisma generate && next build`, so **every
+deploy brings the database up to match the schema before the new code goes
+live**. This matters more than it sounds: without it, a deploy that adds a
+column ships code expecting that column against a database that doesn't have
+it, and every page that reads the affected table 500s until someone
+remembers to push the schema by hand. That failure mode bit this project
+repeatedly before the push moved into the build.
+
+`prisma db push` runs *without* `--accept-data-loss`, deliberately. Additive
+changes (new columns, tables, enums) apply silently and the deploy carries
+on; anything that would drop data instead **fails the build** and leaves
+both the database and the running site untouched. A failed deploy you can
+see beats silent data loss you can't. If a deploy ever fails on this step,
+read the Prisma error — it names the column and the row count at risk — and
+resolve it deliberately rather than reaching for the flag.
