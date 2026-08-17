@@ -180,4 +180,38 @@ describe('tasks', () => {
       expect(task.status).toBe('COMPLETED');
     });
   });
+
+  // Wipes every task in the database — must stay the last describe block in
+  // this file (fileParallelism is off, so files run one at a time, but tests
+  // within a file share the same database and this one leaves it empty).
+  describe('resetting every task', () => {
+    it('is closed to a non-admin', async () => {
+      const person = await createPerson(ceoCookie);
+      const res = await api('/api/admin/tasks/reset', { method: 'POST', cookie: person.cookie });
+      expect(res.status).toBe(403);
+    });
+
+    it('deletes every task company-wide, attachments included, and leaves plan points as plain points', async () => {
+      const assignee = await createPerson(ceoCookie);
+      const created = await api('/api/tasks', {
+        method: 'POST',
+        cookie: ceoCookie,
+        body: { title: 'About to be wiped', assigneeId: assignee.id },
+      });
+      await api('/api/day/check-in', { method: 'POST', cookie: assignee.cookie });
+      const point = await testDb.planPoint.findFirst({ where: { taskId: created.json.id } });
+      expect(point).not.toBeNull();
+
+      const res = await api('/api/admin/tasks/reset', { method: 'POST', cookie: ceoCookie });
+      expect(res.status).toBe(200);
+      expect(res.json.deleted).toBeGreaterThan(0);
+
+      const remaining = await testDb.task.count();
+      expect(remaining).toBe(0);
+
+      const survivedPoint = await testDb.planPoint.findUnique({ where: { id: point.id } });
+      expect(survivedPoint).not.toBeNull();
+      expect(survivedPoint.taskId).toBeNull();
+    });
+  });
 });

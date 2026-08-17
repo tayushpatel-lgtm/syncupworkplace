@@ -7,6 +7,7 @@ import { dayKey } from '../../../lib/dates';
 import Shell from '../../../components/Shell';
 import TaskBoard from '../../../components/TaskBoard';
 import AssignTaskButton from '../../../components/AssignTaskButton';
+import ResetTasksButton from './ResetTasksButton';
 import { PageHead, Stat } from '../../../components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ export default async function AdminTasksPage({ searchParams }) {
   const params = await searchParams;
   const who = params?.who || '';
 
-  const [tasks, people, openCounts] = await Promise.all([
+  const [tasks, people, openCounts, totalTaskCount] = await Promise.all([
     prisma.task.findMany({
       where: who ? { assigneeId: who } : {},
       orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
@@ -38,6 +39,7 @@ export default async function AdminTasksPage({ searchParams }) {
       where: { status: { in: ['PENDING', 'PROGRESS'] } },
       _count: { _all: true },
     }),
+    prisma.task.count(),
   ]);
 
   const today = dayKey();
@@ -51,6 +53,7 @@ export default async function AdminTasksPage({ searchParams }) {
         title="Tasks"
         subtitle={`${open.length} open across the company · the cap is ${settings.assignmentCap} each`}
       >
+        <ResetTasksButton count={totalTaskCount} />
         <AssignTaskButton people={people} currentUserId={user.id} />
       </PageHead>
 

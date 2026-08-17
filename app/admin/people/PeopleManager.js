@@ -342,7 +342,9 @@ export default function PeopleManager({
                       Password
                     </button>
                     <button
-                      className={`btn btn-sm ${p.active ? 'btn-danger' : ''}`}
+                      className={`btn-icon ${p.active ? 'danger' : ''}`}
+                      title={p.active ? 'Deactivate' : 'Reactivate'}
+                      aria-label={p.active ? 'Deactivate' : 'Reactivate'}
                       disabled={p.id === currentUserId || rowBusy === p.id}
                       onClick={async () => {
                         setRowBusy(p.id);
@@ -354,8 +356,13 @@ export default function PeopleManager({
                         setRowBusy('');
                       }}
                     >
-                      {rowBusy === p.id && <Icon.spinner width={13} height={13} />}
-                      {p.active ? 'Deactivate' : 'Reactivate'}
+                      {rowBusy === p.id ? (
+                        <Icon.spinner width={14} height={14} />
+                      ) : p.active ? (
+                        <Icon.trash width={14} height={14} />
+                      ) : (
+                        <Icon.play width={14} height={14} />
+                      )}
                     </button>
                   </div>
                 </td>
