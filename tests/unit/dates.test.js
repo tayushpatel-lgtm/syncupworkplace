@@ -12,6 +12,8 @@ import {
   formatClock,
   formatDuration,
   formatHours,
+  zonedTimeToUtc,
+  timeKey,
 } from '../../lib/dates.js';
 
 describe('dayKey / dayDate', () => {
@@ -130,6 +132,19 @@ describe('formatClock', () => {
   it('handles the midnight and noon edge cases', () => {
     expect(formatClock('00:00')).toBe('12:00 AM');
     expect(formatClock('12:00')).toBe('12:00 PM');
+  });
+});
+
+describe('zonedTimeToUtc', () => {
+  it('converts a company-timezone wall clock time to the matching UTC instant', () => {
+    // Asia/Kolkata is UTC+5:30 year round, no DST to worry about.
+    expect(zonedTimeToUtc('2026-08-17', '09:30').toISOString()).toBe('2026-08-17T04:00:00.000Z');
+    expect(zonedTimeToUtc('2026-08-17', '23:45').toISOString()).toBe('2026-08-17T18:15:00.000Z');
+  });
+
+  it('round-trips through timeKey back to the same wall clock time', () => {
+    const instant = zonedTimeToUtc('2026-08-17', '14:07');
+    expect(timeKey(instant)).toBe('14:07');
   });
 });
 

@@ -135,3 +135,98 @@ describe('personal Slack ID', () => {
     expect(rowB.slackUserId).toBeNull();
   });
 });
+
+describe('admin attendance correction', () => {
+  let ceoCookie;
+
+  beforeAll(async () => {
+    ceoCookie = await loginAsCeo();
+  });
+
+  it('sets a check-in and check-out time, computes late, and backfills a work session when the day had none', async () => {
+    const person = await createPerson(ceoCookie);
+    const res = await api('/api/admin/attendance', {
+      method: 'POST',
+      cookie: ceoCookie,
+      body: { userId: person.id, date: '2026-01-05', checkInTime: '10:15', checkOutTime: '18:00' },
+    });
+    expect(res.status).toBe(200);
+    expect(res.json.attendance.late).toBe(true);
+    expect(res.json.sessionCreated).toBe(true);
+
+    const attendance = await testDb.attendance.findFirst({ where: { userId: person.id } });
+    expect(attendance.status).toBe('PRESENT');
+    expect(attendance.checkInAt).not.toBeNull();
+
+    const session = await testDb.workSession.findFirst({ where: { userId: person.id, kind: 'WORK' } });
+    expect(session.startedAt.toISOString()).not.toBeNull();
+  });
+
+  it('does not double up a work session on a day that already has one', async () => {
+    const person = await createPerson(ceoCookie);
+    await api('/api/admin/attendance', {
+      method: 'POST',
+      cookie: ceoCookie,
+      body: { userId: person.id, date: '2026-01-06', checkInTime: '09:00', checkOutTime: '17:00' },
+    });
+    const second = await api('/api/admin/attendance', {
+      method: 'POST',
+      cookie: ceoCookie,
+      body: { userId: person.id, date: '2026-01-06', checkInTime: '09:30', checkOutTime: '17:30' },
+    });
+    expect(second.json.sessionCreated).toBe(false);
+
+    const sessions = await testDb.workSession.findMany({ where: { userId: person.id } });
+    expect(sessions).toHaveLength(1);
+  });
+
+  it('clearing both times marks the day absent', async () => {
+    const person = await createPerson(ceoCookie);
+    await api('/api/admin/attendance', {
+      method: 'POST',
+      cookie: ceoCookie,
+      body: { userId: person.id, date: '2026-01-07', checkInTime: '09:00', checkOutTime: '17:00' },
+    });
+    const cleared = await api('/api/admin/attendance', {
+      method: 'POST',
+      cookie: ceoCookie,
+      body: { userId: person.id, date: '2026-01-07', checkInTime: null, checkOutTime: null },
+    });
+    expect(cleared.status).toBe(200);
+    expect(cleared.json.attendance.status).toBe('ABSENT');
+
+    const attendance = await testDb.attendance.findFirst({ where: { userId: person.id } });
+    expect(attendance.checkInAt).toBeNull();
+    expect(attendance.checkOutAt).toBeNull();
+  });
+
+  it('rejects a check-out time given without a check-in time', async () => {
+    const person = await createPerson(ceoCookie);
+    const res = await api('/api/admin/attendance', {
+      method: 'POST',
+      cookie: ceoCookie,
+      body: { userId: person.id, date: '2026-01-08', checkOutTime: '17:00' },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a date in the future', async () => {
+    const person = await createPerson(ceoCookie);
+    const res = await api('/api/admin/attendance', {
+      method: 'POST',
+      cookie: ceoCookie,
+      body: { userId: person.id, date: '2099-01-01', checkInTime: '09:00' },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('is closed to a non-admin', async () => {
+    const person = await createPerson(ceoCookie);
+    const res = await api('/api/admin/attendance', {
+      method: 'POST',
+      cookie: person.cookie,
+      body: { userId: person.id, date: '2026-01-05', checkInTime: '09:00' },
+    });
+    expect(res.status).toBe(403);
+  });
+});

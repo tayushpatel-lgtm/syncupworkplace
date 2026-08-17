@@ -108,6 +108,22 @@ rather than hiding it. If it's turned on, the person also gets a personal DM:
 Reconciliation runs whenever a person's day is read or written, so the figures are
 current without a background worker.
 
+### Fixing a mistake
+
+Each person's own check-in deadline can be set on `/admin/people` (blank
+falls back to the company default on `/admin/settings`) — that's the time a
+late arrival is measured against, going forward.
+
+For a day that's already happened — someone forgot to check in or out, or a
+day is simply wrong — `/admin/attendance` → **By day** lets an admin correct
+that one person's one day directly: set (or clear) their check-in and
+check-out time, which recomputes whether they were late against their own
+deadline. Clearing both marks the day absent. If the day had no recorded
+work sessions at all, correcting it also backfills one spanning the times
+given, so the hours actually count instead of the day reading as present
+but zero hours worked. It never touches any other day, and never invents
+sessions on a day that already has real ones recorded.
+
 ## Settings, and what reads them
 
 Everything on `/admin/settings` is enforced server-side, not just in the UI.
