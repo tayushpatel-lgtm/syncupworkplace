@@ -82,10 +82,11 @@ not an inline form. Open any card for its own page: change stage, edit detail,
 attach files or images. Attachments live as bytes in the same Postgres database
 rather than a paid storage service, capped at 4MB each.
 
-`/admin/tasks` also has **Reset all tasks** — wipes every task company-wide,
-attachments included, and un-links (not deletes) any plan point that came
-from one of them. It's for clearing seeded or demo data before real use, not
-routine cleanup, so it's typed-confirmation gated and cannot be undone.
+`/admin/tasks` also has **Reset all tasks**, CEO-only — wipes every task
+company-wide, attachments included, and un-links (not deletes) any plan
+point that came from one of them. It's for clearing seeded or demo data
+before real use, not routine cleanup, so it's typed-confirmation gated on
+top of the role check and cannot be undone.
 
 ## Apps
 

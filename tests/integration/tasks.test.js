@@ -191,6 +191,12 @@ describe('tasks', () => {
       expect(res.status).toBe(403);
     });
 
+    it('is closed to an admin who is not the CEO', async () => {
+      const admin = await createPerson(ceoCookie, { role: 'ADMIN' });
+      const res = await api('/api/admin/tasks/reset', { method: 'POST', cookie: admin.cookie });
+      expect(res.status).toBe(403);
+    });
+
     it('deletes every task company-wide, attachments included, and leaves plan points as plain points', async () => {
       const assignee = await createPerson(ceoCookie);
       const created = await api('/api/tasks', {

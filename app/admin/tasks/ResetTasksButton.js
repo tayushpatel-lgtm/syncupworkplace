@@ -9,10 +9,12 @@ const PHRASE = 'DELETE';
 
 /**
  * Wipes every task company-wide — every board, every person's plan loses the
- * task link. Nothing this destructive should go through on a stray click, so
- * the confirm button stays disabled until the admin types the word out.
+ * task link. CEO-only, since it's the one action here severe enough that
+ * even other admins shouldn't reach it. Nothing this destructive should go
+ * through on a stray click either, so the confirm button stays disabled
+ * until the CEO types the word out.
  */
-export default function ResetTasksButton({ count }) {
+export default function ResetTasksButton({ count, isCeo }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState('');
@@ -39,7 +41,7 @@ export default function ResetTasksButton({ count }) {
     router.refresh();
   }
 
-  if (count === 0) return null;
+  if (!isCeo || count === 0) return null;
 
   return (
     <>

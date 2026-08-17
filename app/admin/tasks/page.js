@@ -53,7 +53,7 @@ export default async function AdminTasksPage({ searchParams }) {
         title="Tasks"
         subtitle={`${open.length} open across the company · the cap is ${settings.assignmentCap} each`}
       >
-        <ResetTasksButton count={totalTaskCount} />
+        <ResetTasksButton count={totalTaskCount} isCeo={user.role === 'CEO'} />
         <AssignTaskButton people={people} currentUserId={user.id} />
       </PageHead>
 
