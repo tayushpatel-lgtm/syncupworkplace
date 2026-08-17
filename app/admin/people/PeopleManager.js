@@ -11,11 +11,17 @@ const ROLES = [
   ['CEO', 'CEO'],
 ];
 
+const EMPLOYMENT_TYPES = [
+  ['FULL_TIME', 'Full-time'],
+  ['INTERN', 'Intern'],
+  ['FREELANCER', 'Freelancer'],
+];
+
 const BLANK = {
   name: '',
   email: '',
-  password: '',
   role: 'EMPLOYEE',
+  employmentType: 'FULL_TIME',
   department: '',
   title: '',
   checkInBy: '',
@@ -83,7 +89,7 @@ export default function PeopleManager({
       setError(data.error || 'Could not add that person.');
       return;
     }
-    setNotice(`${form.name} can sign in with the password you set.`);
+    setNotice(`${form.name} can sign in with ${form.email} as both email and password.`);
     setForm(BLANK);
     router.refresh();
   }
@@ -141,8 +147,9 @@ export default function PeopleManager({
           <div>
             <h2>Add someone</h2>
             <p>
-              They sign in with the email and password you set here, and land on the onboarding
-              checklist before they reach anything else.
+              They sign in with their email as both the username and the starting password, and
+              have to set their own before they reach anything else — the onboarding checklist
+              included.
             </p>
           </div>
         </div>
@@ -171,27 +178,18 @@ export default function PeopleManager({
               />
             </div>
             <div>
-              <label className="field-label">FIRST PASSWORD</label>
-              <div className="row" style={{ gap: 6 }}>
-                <input
-                  className="input"
-                  type="text"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  placeholder="At least 8 characters"
-                  minLength={8}
-                  required
-                />
-                <button
-                  type="button"
-                  className="btn-icon"
-                  title="Generate a password"
-                  aria-label="Generate a password"
-                  onClick={() => setForm({ ...form, password: generatePassword() })}
-                >
-                  <Icon.key width={15} height={15} />
-                </button>
-              </div>
+              <label className="field-label">EMPLOYMENT</label>
+              <select
+                className="select"
+                value={form.employmentType}
+                onChange={(e) => setForm({ ...form, employmentType: e.target.value })}
+              >
+                {EMPLOYMENT_TYPES.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -259,6 +257,7 @@ export default function PeopleManager({
             <tr>
               <th>PERSON</th>
               <th>DEPARTMENT</th>
+              <th>EMPLOYMENT</th>
               <th>ROLE</th>
               <th>CHECK-IN BY</th>
               <th>MIN HOURS</th>
@@ -279,6 +278,20 @@ export default function PeopleManager({
                     onChange={(e) => patch(p.id, { department: e.target.value })}
                     style={{ padding: '7px 10px', width: 'auto' }}
                   />
+                </td>
+                <td>
+                  <select
+                    className="select"
+                    value={p.employmentType}
+                    onChange={(e) => patch(p.id, { employmentType: e.target.value })}
+                    style={{ padding: '7px 10px', width: 'auto' }}
+                  >
+                    {EMPLOYMENT_TYPES.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td>
                   <select
@@ -356,7 +369,7 @@ export default function PeopleManager({
         open={!!resetting}
         onClose={() => setResetting(null)}
         title={resetting ? `Set a password for ${resetting.name}` : 'Set a password'}
-        description="They'll need this the next time they sign in. Share it with them directly — it isn't shown again after you close this."
+        description="They'll need this the next time they sign in, and will be asked to set their own right after. Share it with them directly — it isn't shown again after you close this."
       >
         {resetting && (
           <form onSubmit={submitReset}>

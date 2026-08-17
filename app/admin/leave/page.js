@@ -1,7 +1,8 @@
 import { requireAdmin } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { getSettings } from '../../../lib/settings';
-import { currentYear } from '../../../lib/leave';
+import { monthKey } from '../../../lib/leave';
+import { dayKey } from '../../../lib/dates';
 import Shell from '../../../components/Shell';
 import { PageHead } from '../../../components/ui';
 import LeaveAdmin from './LeaveAdmin';
@@ -11,9 +12,8 @@ export const dynamic = 'force-dynamic';
 export default async function AdminLeavePage() {
   const user = await requireAdmin();
   const settings = await getSettings();
-  const year = currentYear();
 
-  const [requests, people, balances] = await Promise.all([
+  const [requests, people] = await Promise.all([
     prisma.leaveRequest.findMany({
       orderBy: [{ status: 'asc' }, { startDate: 'asc' }],
       include: {
@@ -24,21 +24,31 @@ export default async function AdminLeavePage() {
     }),
     prisma.user.findMany({
       where: { active: true },
-      select: { id: true, name: true, department: true },
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        employmentType: true,
+        casualLeaveBalance: true,
+        sickLeaveBalance: true,
+        lastLeaveAccrualMonth: true,
+      },
       orderBy: { name: 'asc' },
     }),
-    prisma.leaveBalance.findMany({ where: { year } }),
   ]);
 
-  const balanceBy = new Map(balances.map((b) => [b.userId, b]));
+  const thisMonth = monthKey(dayKey());
+  const accruedCount = people.filter((p) => p.lastLeaveAccrualMonth === thisMonth).length;
   const waiting = requests.filter((r) => r.status === 'PENDING').length;
 
   return (
     <Shell user={user}>
       <PageHead title="Leave" subtitle={`${waiting} waiting on you.`} />
       <LeaveAdmin
-        year={year}
         workingDays={settings.workingDays}
+        thisMonth={thisMonth}
+        accruedCount={accruedCount}
+        totalCount={people.length}
         requests={requests.map((r) => ({
           id: r.id,
           kind: r.kind,
@@ -51,18 +61,14 @@ export default async function AdminLeavePage() {
           user: r.user,
           decider: r.decider?.name || null,
         }))}
-        rows={people.map((p) => {
-          const b = balanceBy.get(p.id);
-          return {
-            id: p.id,
-            name: p.name,
-            department: p.department,
-            sickLeft: b ? Math.max(0, b.sickTotal - b.sickUsed) : 12,
-            used: b ? b.sickUsed + b.plannedUsed : 0,
-            plannedLeft: b ? Math.max(0, b.plannedTotal + b.carried - b.plannedUsed) : 12,
-            carried: b?.carried || 0,
-          };
-        })}
+        rows={people.map((p) => ({
+          id: p.id,
+          name: p.name,
+          department: p.department,
+          employmentType: p.employmentType,
+          casualLeft: p.casualLeaveBalance,
+          sickLeft: p.sickLeaveBalance,
+        }))}
       />
     </Shell>
   );

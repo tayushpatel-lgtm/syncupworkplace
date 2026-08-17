@@ -130,6 +130,7 @@ describe('MCP write tools', () => {
 
   it('decide_leave approves a pending request and spends the balance', async () => {
     const person = await createPerson(ceoCookie, { name: 'Zara Leavetaker' });
+    await testDb.user.update({ where: { id: person.id }, data: { casualLeaveBalance: 5 } });
     const { dayKey, shiftDay } = await import('../../lib/dates.js');
     const startDate = shiftDay(dayKey(), 40);
     const endDate = shiftDay(dayKey(), 40);

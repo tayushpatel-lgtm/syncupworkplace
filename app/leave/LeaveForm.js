@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { useRouter } from '../../lib/useRouter';
 import { Icon } from '../../components/Icons';
 
-export default function LeaveForm() {
+export default function LeaveForm({ today, minCasualDate }) {
   const router = useRouter();
   const [form, setForm] = useState({ kind: 'PLANNED', startDate: '', endDate: '', reason: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const minStart = form.kind === 'PLANNED' ? minCasualDate : today;
 
   async function submit(e) {
     e.preventDefault();
@@ -39,7 +41,7 @@ export default function LeaveForm() {
           <h2>Ask for leave</h2>
           <p>
             Days are counted against the working week — weekends and holidays inside the range cost
-            you nothing.
+            you nothing. Casual leave needs 2 days' notice; sick leave can be filed for any date.
           </p>
         </div>
       </div>
@@ -51,9 +53,18 @@ export default function LeaveForm() {
             <select
               className="select"
               value={form.kind}
-              onChange={(e) => setForm({ ...form, kind: e.target.value })}
+              onChange={(e) => {
+                const kind = e.target.value;
+                const floor = kind === 'PLANNED' ? minCasualDate : today;
+                setForm({
+                  ...form,
+                  kind,
+                  startDate: form.startDate && form.startDate >= floor ? form.startDate : '',
+                  endDate: form.startDate && form.startDate >= floor ? form.endDate : '',
+                });
+              }}
             >
-              <option value="PLANNED">Planned</option>
+              <option value="PLANNED">Casual</option>
               <option value="SICK">Sick</option>
             </select>
           </div>
@@ -62,6 +73,7 @@ export default function LeaveForm() {
             <input
               className="input"
               type="date"
+              min={minStart}
               value={form.startDate}
               onChange={(e) =>
                 setForm({
@@ -79,7 +91,7 @@ export default function LeaveForm() {
             <input
               className="input"
               type="date"
-              min={form.startDate || undefined}
+              min={form.startDate || minStart}
               value={form.endDate}
               onChange={(e) => setForm({ ...form, endDate: e.target.value })}
               required

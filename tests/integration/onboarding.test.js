@@ -15,12 +15,17 @@ describe('onboarding gate', () => {
     const created = await api('/api/people', {
       method: 'POST',
       cookie: ceoCookie,
-      body: { name: 'Gate Test', email, password: TEST_PASSWORD, role: 'EMPLOYEE' },
+      body: { name: 'Gate Test', email, role: 'EMPLOYEE' },
     });
     personId = created.json.id;
 
-    const login1 = await login(email);
-    personCookie = login1.cookie;
+    // Everyone starts with their email as their password and is forced to
+    // change it — clear that first so this file can test the onboarding gate
+    // on its own, not tangled up with the password gate that runs before it.
+    const login1 = await login(email, email);
+    await api('/api/account/password', { method: 'POST', cookie: login1.cookie, body: { password: TEST_PASSWORD } });
+    const login2 = await login(email);
+    personCookie = login2.cookie;
 
     stepIds = (await testDb.onboardingStep.findMany({ select: { id: true } })).map((s) => s.id);
   });

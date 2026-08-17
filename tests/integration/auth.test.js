@@ -49,3 +49,48 @@ describe('auth', () => {
     expect(my.status).toBe(200);
   });
 });
+
+describe('the forced password-change gate', () => {
+  it('signs in with the email as the starting password, and sends a fresh account to /change-password ahead of onboarding', async () => {
+    const ceoCookie = await loginAsCeo();
+    const email = `fresh.gate.${Date.now()}@fixture.test`;
+    await api('/api/people', { method: 'POST', cookie: ceoCookie, body: { name: 'Fresh Gate', email, role: 'EMPLOYEE' } });
+
+    const { status, cookie } = await login(email, email);
+    expect(status).toBe(200);
+
+    const home = await page('/', { cookie });
+    expect(home.status).toBe(307);
+    expect(home.location).toContain('/change-password');
+  });
+
+  it('lets them through once they set their own password, then hands off to onboarding', async () => {
+    const ceoCookie = await loginAsCeo();
+    const email = `fresh.gate2.${Date.now()}@fixture.test`;
+    await api('/api/people', { method: 'POST', cookie: ceoCookie, body: { name: 'Fresh Gate Two', email, role: 'EMPLOYEE' } });
+
+    const first = await login(email, email);
+    const changed = await api('/api/account/password', {
+      method: 'POST',
+      cookie: first.cookie,
+      body: { password: 'BrandNewPass1' },
+    });
+    expect(changed.status).toBe(200);
+
+    // The gate is cleared, but they're still a fresh account — onboarding takes over next.
+    const second = await login(email, 'BrandNewPass1');
+    const home = await page('/', { cookie: second.cookie });
+    expect(home.status).toBe(307);
+    expect(home.location).toContain('/onboarding');
+  });
+
+  it('rejects a new password under 8 characters', async () => {
+    const ceoCookie = await loginAsCeo();
+    const email = `fresh.gate3.${Date.now()}@fixture.test`;
+    await api('/api/people', { method: 'POST', cookie: ceoCookie, body: { name: 'Fresh Gate Three', email, role: 'EMPLOYEE' } });
+
+    const { cookie } = await login(email, email);
+    const res = await api('/api/account/password', { method: 'POST', cookie, body: { password: 'short' } });
+    expect(res.status).toBe(400);
+  });
+});

@@ -5,7 +5,8 @@ import { useRouter } from '../../../lib/useRouter';
 import { Icon } from '../../../components/Icons';
 import { Person, Empty } from '../../../components/ui';
 
-const KIND_LABEL = { SICK: 'Sick', PLANNED: 'Planned' };
+const KIND_LABEL = { SICK: 'Sick', PLANNED: 'Casual' };
+const EMPLOYMENT_LABEL = { FULL_TIME: 'Full-time', INTERN: 'Intern', FREELANCER: 'Freelancer' };
 const STATUS_TONE = { APPROVED: 'green', REJECTED: 'red', PENDING: 'amber', CANCELLED: '' };
 
 function dateSpan(start, end) {
@@ -18,14 +19,13 @@ function dateSpan(start, end) {
   return start === end ? fmt(start) : `${fmt(start)} → ${fmt(end)}`;
 }
 
-export default function LeaveAdmin({ year, requests, rows, workingDays }) {
+export default function LeaveAdmin({ requests, rows, workingDays, thisMonth, accruedCount, totalCount }) {
   const router = useRouter();
   const [tab, setTab] = useState('requests');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [granting, setGranting] = useState(null);
   const [grant, setGrant] = useState({ kind: 'PLANNED', days: 1 });
-  const [policy, setPolicy] = useState({ sickTotal: 12, plannedTotal: 12 });
   const [busy, setBusy] = useState('');
 
   const waiting = requests.filter((r) => r.status === 'PENDING');
@@ -46,7 +46,7 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
     }
     if (message) setNotice(message);
     router.refresh();
-    return true;
+    return data;
   }
 
   async function withBusy(key, fn) {
@@ -161,10 +161,9 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
             <thead>
               <tr>
                 <th>EMPLOYEE</th>
+                <th>EMPLOYMENT</th>
+                <th className="right">CASUAL LEFT</th>
                 <th className="right">SICK LEFT</th>
-                <th className="right">USED</th>
-                <th className="right">PLANNED LEFT</th>
-                <th className="right">CARRIED</th>
                 <th className="right" />
               </tr>
             </thead>
@@ -174,10 +173,9 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
                   <td>
                     <Person name={row.name} sub={row.department || '—'} />
                   </td>
+                  <td className="muted">{EMPLOYMENT_LABEL[row.employmentType]}</td>
+                  <td className="num right">{row.casualLeft}</td>
                   <td className="num right">{row.sickLeft}</td>
-                  <td className="num right">{row.used}</td>
-                  <td className="num right">{row.plannedLeft}</td>
-                  <td className="num right">{row.carried}</td>
                   <td className="right">
                     {granting === row.id ? (
                       <div className="row end" style={{ gap: 6 }}>
@@ -187,7 +185,7 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
                           value={grant.kind}
                           onChange={(e) => setGrant({ ...grant, kind: e.target.value })}
                         >
-                          <option value="PLANNED">Planned</option>
+                          <option value="PLANNED">Casual</option>
                           <option value="SICK">Sick</option>
                         </select>
                         <input
@@ -206,7 +204,7 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
                             withBusy(`grant-${row.id}`, async () => {
                               const ok = await post(
                                 '/api/leave/grant',
-                                { userId: row.id, kind: grant.kind, days: grant.days, year },
+                                { userId: row.id, kind: grant.kind, days: grant.days },
                                 `${grant.days} day${grant.days === 1 ? '' : 's'} granted to ${row.name}.`,
                               );
                               if (ok) setGranting(null);
@@ -241,57 +239,65 @@ export default function LeaveAdmin({ year, requests, rows, workingDays }) {
               <Icon.gear />
             </span>
             <div>
-              <h2>The leave policy for {year}</h2>
-              <p>
-                What everyone starts the year with. Saving this resets the allowance for every
-                person — days already used stay used, and anything granted by hand stays on top.
-              </p>
+              <h2>The leave policy</h2>
+              <p>Fixed by employment type — nothing here is editable, it just explains the rule.</p>
             </div>
           </div>
 
-          <div className="grid-2" style={{ gap: 22 }}>
-            <div>
-              <label className="field-label">SICK DAYS A YEAR</label>
-              <input
-                className="input"
-                type="number"
-                min={0}
-                max={365}
-                value={policy.sickTotal}
-                onChange={(e) => setPolicy({ ...policy, sickTotal: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <label className="field-label">PLANNED DAYS A YEAR</label>
-              <input
-                className="input"
-                type="number"
-                min={0}
-                max={365}
-                value={policy.plannedTotal}
-                onChange={(e) => setPolicy({ ...policy, plannedTotal: Number(e.target.value) })}
-              />
-            </div>
-          </div>
+          <table className="table" style={{ marginTop: 4 }}>
+            <thead>
+              <tr>
+                <th>EMPLOYMENT</th>
+                <th>CASUAL</th>
+                <th>SICK</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Full-time</td>
+                <td>1 a month, caps at 6 banked</td>
+                <td>1 a month, does not carry — unused lapses</td>
+              </tr>
+              <tr>
+                <td>Intern</td>
+                <td>1 a month, caps at 6 banked</td>
+                <td className="muted">None</td>
+              </tr>
+              <tr>
+                <td>Freelancer</td>
+                <td className="muted">None — the weekly off is it</td>
+                <td className="muted">None</td>
+              </tr>
+            </tbody>
+          </table>
 
           <p className="hint">
-            Leave is counted in working days. The working week is set on the Settings page — right
-            now it runs {workingDays.length} days, so weekends and holidays inside a request cost
-            nobody anything.
+            Casual leave needs 2 days' notice to request; sick leave can be filed for any date.
+            Someone who joins on or before the 15th of a month earns that month's leave — joining
+            after the 15th, their first credit is the month after. Leave itself is counted in
+            working days — the working week is set on the Settings page, currently {workingDays.length}{' '}
+            days, so weekends and holidays inside a request cost nobody anything.
+          </p>
+
+          <p className="hint">
+            {accruedCount} of {totalCount} active people are accrued for {thisMonth}. The scheduled
+            pass runs once a day and only credits whoever hasn't been done yet this month, so
+            running it by hand below is always safe.
           </p>
 
           <div className="row end" style={{ marginTop: 20 }}>
             <button
               className="btn btn-primary"
-              disabled={busy === 'policy'}
+              disabled={busy === 'accrual'}
               onClick={() =>
-                withBusy('policy', () =>
-                  post('/api/leave/policy', { ...policy, year }, 'The policy applies to everyone now.'),
-                )
+                withBusy('accrual', async () => {
+                  const data = await post('/api/cron/leave-accrual', {}, null);
+                  if (data) setNotice(`Accrual done — ${data.accrued} of ${data.ofPeople} people credited for ${data.month}.`);
+                })
               }
             >
-              {busy === 'policy' && <Icon.spinner width={14} height={14} />}
-              Apply to everyone
+              {busy === 'accrual' && <Icon.spinner width={14} height={14} />}
+              Run accrual now
             </button>
           </div>
         </section>

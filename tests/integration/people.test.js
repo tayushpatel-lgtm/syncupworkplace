@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { api, login, loginAsCeo, createPerson, uniqueEmail, testDb } from './helpers.js';
-import { TEST_PASSWORD, FIXTURE } from './config.js';
+import { FIXTURE } from './config.js';
 
 describe('people management', () => {
   let ceoCookie;
@@ -11,13 +11,20 @@ describe('people management', () => {
     ceoId = (await testDb.user.findUnique({ where: { email: FIXTURE.ceo.email } })).id;
   });
 
-  it('rejects a password under 8 characters at creation', async () => {
-    const res = await api('/api/people', {
+  it('defaults a new person\'s password to their email and forces a change on first login', async () => {
+    const email = uniqueEmail('fresh');
+    const created = await api('/api/people', {
       method: 'POST',
       cookie: ceoCookie,
-      body: { name: 'Too Short', email: uniqueEmail('short'), password: 'short', role: 'EMPLOYEE' },
+      body: { name: 'Fresh Hire', email, role: 'EMPLOYEE' },
     });
-    expect(res.status).toBe(400);
+    expect(created.status).toBe(200);
+
+    const row = await testDb.user.findUnique({ where: { id: created.json.id } });
+    expect(row.mustChangePassword).toBe(true);
+
+    const signIn = await login(email, email);
+    expect(signIn.status).toBe(200);
   });
 
   it('rejects creating a second account with the same email', async () => {
@@ -25,13 +32,13 @@ describe('people management', () => {
     const first = await api('/api/people', {
       method: 'POST',
       cookie: ceoCookie,
-      body: { name: 'First', email, password: TEST_PASSWORD, role: 'EMPLOYEE' },
+      body: { name: 'First', email, role: 'EMPLOYEE' },
     });
     expect(first.status).toBe(200);
     const second = await api('/api/people', {
       method: 'POST',
       cookie: ceoCookie,
-      body: { name: 'Second', email, password: TEST_PASSWORD, role: 'EMPLOYEE' },
+      body: { name: 'Second', email, role: 'EMPLOYEE' },
     });
     expect(second.status).toBe(409);
   });
@@ -57,6 +64,23 @@ describe('people management', () => {
 
     const signIn = await login(futureCeo.email, 'LegitimateReset1');
     expect(signIn.status).toBe(200);
+
+    // A password they didn't pick themselves forces a change again, same as a first login.
+    const row = await testDb.user.findUnique({ where: { id: futureCeo.id } });
+    expect(row.mustChangePassword).toBe(true);
+  });
+
+  it('can set a person\'s employment type, which the leave form gates on', async () => {
+    const person = await createPerson(ceoCookie);
+    const res = await api(`/api/people/${person.id}`, {
+      method: 'PATCH',
+      cookie: ceoCookie,
+      body: { employmentType: 'FREELANCER' },
+    });
+    expect(res.status).toBe(200);
+
+    const row = await testDb.user.findUnique({ where: { id: person.id } });
+    expect(row.employmentType).toBe('FREELANCER');
   });
 
   it("an admin can reset a plain employee's password", async () => {
@@ -92,7 +116,7 @@ describe('people management', () => {
     const res = await api('/api/people', {
       method: 'POST',
       cookie: person.cookie,
-      body: { name: 'Sneaky', email: uniqueEmail('sneaky'), password: TEST_PASSWORD, role: 'EMPLOYEE' },
+      body: { name: 'Sneaky', email: uniqueEmail('sneaky'), role: 'EMPLOYEE' },
     });
     expect(res.status).toBe(403);
   });

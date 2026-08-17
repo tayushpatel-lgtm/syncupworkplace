@@ -117,6 +117,7 @@ async function main() {
 
   console.log('People…');
   const passwordHash = await bcrypt.hash('syncup1234', 10);
+  const thisMonth = dayKey(0).slice(0, 7);
   const users = [];
   for (const [name, email, role, department, title] of PEOPLE) {
     users.push(
@@ -130,6 +131,11 @@ async function main() {
           title,
           checkInBy: name === 'Rajeevi' ? '10:00' : null,
           joinedAt: dayDate(dayKey(-400)),
+          // Seeded as if they'd been accruing for a while already — casual
+          // leave at its cap, sick leave at this month's fresh allotment.
+          casualLeaveBalance: 6,
+          sickLeaveBalance: 1,
+          lastLeaveAccrualMonth: thisMonth,
         },
       }),
     );
@@ -192,19 +198,6 @@ async function main() {
     holidayKeys.add(date);
   }
 
-  console.log('Leave balances…');
-  await prisma.leaveBalance.createMany({
-    data: users.map((user) => ({
-      userId: user.id,
-      year,
-      sickTotal: 12,
-      plannedTotal: 12,
-      carried: 7,
-      sickUsed: 0,
-      plannedUsed: 0,
-    })),
-  });
-
   console.log('Tasks…');
   const tasks = [];
   for (let i = 0; i < 34; i += 1) {
@@ -257,9 +250,9 @@ async function main() {
       decidedAt: at(dayKey(-10), 6, 0),
     },
   });
-  await prisma.leaveBalance.updateMany({
-    where: { userId: users[6].id, year },
-    data: { sickUsed: 1 },
+  await prisma.user.update({
+    where: { id: users[6].id },
+    data: { sickLeaveBalance: 0 },
   });
 
   console.log('History — attendance, sessions, plans and reports…');

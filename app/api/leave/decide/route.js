@@ -1,6 +1,5 @@
 import { prisma } from '../../../../lib/db';
 import { apiUser } from '../../../../lib/auth';
-import { applyToBalance } from '../../../../lib/leave';
 
 const DECISIONS = ['APPROVED', 'REJECTED'];
 
@@ -31,8 +30,14 @@ export async function POST(request) {
 
   // Only an approval spends the balance.
   if (decision === 'APPROVED') {
-    const year = Number(leave.startDate.toISOString().slice(0, 4));
-    await applyToBalance(leave.userId, leave.kind, leave.days, year, 1);
+    const field = leave.kind === 'SICK' ? 'sickLeaveBalance' : 'casualLeaveBalance';
+    const person = await prisma.user.findUnique({ where: { id: leave.userId }, select: { [field]: true } });
+    if (person) {
+      await prisma.user.update({
+        where: { id: leave.userId },
+        data: { [field]: Math.max(0, person[field] - leave.days) },
+      });
+    }
   }
 
   return Response.json({ ok: true });

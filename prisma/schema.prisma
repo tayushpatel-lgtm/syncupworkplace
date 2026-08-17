@@ -13,6 +13,12 @@ enum Role {
   CEO
 }
 
+enum EmploymentType {
+  FULL_TIME
+  INTERN
+  FREELANCER
+}
+
 enum TaskStatus {
   PENDING
   PROGRESS
@@ -78,6 +84,20 @@ model User {
   role         Role     @default(EMPLOYEE)
   department   String?
   title        String?
+  employmentType EmploymentType @default(FULL_TIME)
+  /// True right after account creation or an admin password reset — the login gate
+  /// sends them to change it before anything else, so nobody keeps a password they
+  /// didn't pick themselves.
+  mustChangePassword Boolean @default(false)
+  /// Running casual-leave balance. The monthly accrual caps it rather than resetting
+  /// it, so unlike sick leave it carries for as long as it stays under the cap.
+  casualLeaveBalance Int @default(0)
+  /// Sick-leave balance. The monthly accrual replaces this outright rather than
+  /// adding to it, so an unused day never carries into the next month.
+  sickLeaveBalance   Int @default(0)
+  /// "YYYY-MM" of the last month this person's leave was accrued, so the monthly
+  /// pass is idempotent per person regardless of how many times it runs that month.
+  lastLeaveAccrualMonth String?
   /// Per-person override for the check-in deadline, "HH:MM". Falls back to Settings.defaultCheckInBy.
   checkInBy    String?
   /// Per-person override for the minimum worked minutes to count as present. Falls back to Settings.minPresentMinutes.

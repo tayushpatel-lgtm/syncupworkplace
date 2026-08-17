@@ -67,7 +67,7 @@ export function uniqueEmail(prefix) {
  * and a ready-to-use session cookie.
  */
 export async function createPerson(ceoCookie, opts = {}) {
-  const { role = 'EMPLOYEE', department, name, checkInBy, minPresentMinutes } = opts;
+  const { role = 'EMPLOYEE', employmentType, department, name, checkInBy, minPresentMinutes } = opts;
   const email = uniqueEmail(role.toLowerCase());
   const created = await api('/api/people', {
     method: 'POST',
@@ -75,8 +75,8 @@ export async function createPerson(ceoCookie, opts = {}) {
     body: {
       name: name || `Fixture ${email.split('.')[0]}`,
       email,
-      password: TEST_PASSWORD,
       role,
+      employmentType,
       department,
       checkInBy,
       minPresentMinutes,
@@ -85,6 +85,19 @@ export async function createPerson(ceoCookie, opts = {}) {
   if (created.status !== 200) {
     throw new Error(`createPerson(${email}) failed: ${JSON.stringify(created.json)}`);
   }
+
+  // Everyone starts with their email as their password and is forced to
+  // change it — set it to the fixture's known password up front, the same
+  // way a real first login would, so the rest of the suite doesn't have to
+  // deal with the change-password gate for every fixture person it creates.
+  const { cookie: startCookie, status: startStatus } = await login(email, email);
+  if (startStatus !== 200) throw new Error(`login as fresh fixture ${email} failed`);
+  const changed = await api('/api/account/password', {
+    method: 'POST',
+    cookie: startCookie,
+    body: { password: TEST_PASSWORD },
+  });
+  if (changed.status !== 200) throw new Error(`could not set fixture ${email}'s password`);
 
   const { cookie, status } = await login(email);
   if (status !== 200) throw new Error(`login as fresh fixture ${email} failed`);

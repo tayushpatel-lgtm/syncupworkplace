@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/db';
 import { apiUser } from '../../../../lib/auth';
 
 const ROLES = ['EMPLOYEE', 'ADMIN', 'CEO'];
+const EMPLOYMENT_TYPES = ['FULL_TIME', 'INTERN', 'FREELANCER'];
 
 export async function PATCH(request, { params }) {
   const { user, error } = await apiUser({ admin: true });
@@ -21,6 +22,12 @@ export async function PATCH(request, { params }) {
     data.name = name;
   }
   if (body.department !== undefined) data.department = String(body.department).trim() || null;
+  if (body.employmentType !== undefined) {
+    if (!EMPLOYMENT_TYPES.includes(body.employmentType)) {
+      return Response.json({ error: 'Unknown employment type.' }, { status: 400 });
+    }
+    data.employmentType = body.employmentType;
+  }
   if (body.title !== undefined) data.title = String(body.title).trim() || null;
   if (body.checkInBy !== undefined) {
     data.checkInBy = /^\d{2}:\d{2}$/.test(body.checkInBy) ? body.checkInBy : null;
@@ -66,6 +73,8 @@ export async function PATCH(request, { params }) {
       return Response.json({ error: 'A password needs at least 8 characters.' }, { status: 400 });
     }
     data.passwordHash = await bcrypt.hash(password, 10);
+    // A password they didn't pick themselves — same rule as a first login.
+    data.mustChangePassword = true;
   }
 
   await prisma.user.update({ where: { id }, data });

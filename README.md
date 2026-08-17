@@ -143,8 +143,36 @@ Everything on `/admin/settings` is enforced server-side, not just in the UI.
 | Google Sheets credentials | Whether the backup sync can run — see [Google Sheets backup](#google-sheets-backup) |
 
 People are added, deactivated, and have their password reset — including
-generating one — from `/admin/people`. Only the CEO can touch another CEO's
-role, active state, or password; any admin can manage everyone else.
+generating one — from `/admin/people`, which is also where their employment
+type (full-time, intern, freelancer) is set — see [Leave](#leave) for what
+that controls. Only the CEO can touch another CEO's role, active state, or
+password; any admin can manage everyone else.
+
+Everyone starts with their email address as both their username and their
+password, and is sent straight to a "set your own password" screen on first
+login — before onboarding, before anything — so nobody keeps a password
+someone else picked. The same happens after an admin resets a password by
+hand: it forces a change again next time, the same as a first login.
+
+## Leave
+
+The policy is fixed by employment type, not admin-configurable:
+
+| | Casual | Sick |
+|---|---|---|
+| Full-time | 1 a month, caps at 6 banked | 1 a month, does not carry — unused lapses |
+| Intern | 1 a month, caps at 6 banked | None |
+| Freelancer | None — the weekly off is it | None |
+
+Casual leave needs 2 days' notice to request; sick leave can be filed for any
+date, including one already past. Someone who joins on or before the 15th of
+a month earns that month's leave; joining after the 15th, their first credit
+is the month after. A daily scheduled pass (`/api/cron/leave-accrual`,
+`CRON_SECRET`-gated the same way as the other crons) credits whoever hasn't
+been done yet that calendar month — safe to run more than once a day, and an
+admin can also fire it by hand from `/admin/leave` → Policy. An admin can
+still top someone up by hand from the Balances tab there, which — unlike the
+automatic accrual — can push casual leave past the usual 6-day cap.
 
 ### Onboarding checklist
 

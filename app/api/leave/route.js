@@ -1,12 +1,21 @@
 import { prisma } from '../../../lib/db';
 import { apiUser } from '../../../lib/auth';
-import { workingDaysBetween, ensureBalance, remaining, currentYear } from '../../../lib/leave';
+import { workingDaysBetween, canRequestCasual } from '../../../lib/leave';
+import { dayKey } from '../../../lib/dates';
 
 const KINDS = ['SICK', 'PLANNED'];
+const KIND_LABEL = { SICK: 'sick', PLANNED: 'casual' };
 
 export async function POST(request) {
   const { user, error } = await apiUser();
   if (error) return error;
+
+  if (user.employmentType === 'FREELANCER') {
+    return Response.json(
+      { error: 'Freelancer accounts have no leave policy beyond the weekly off.' },
+      { status: 403 },
+    );
+  }
 
   const body = await request.json().catch(() => ({}));
   const kind = KINDS.includes(body.kind) ? body.kind : 'PLANNED';
@@ -19,6 +28,12 @@ export async function POST(request) {
   if (endDate < startDate) {
     return Response.json({ error: 'The end date comes before the start date.' }, { status: 400 });
   }
+  if (kind === 'PLANNED' && !canRequestCasual(startDate)) {
+    return Response.json(
+      { error: 'Casual leave needs at least 2 days\' notice.' },
+      { status: 400 },
+    );
+  }
 
   const days = await workingDaysBetween(startDate, endDate);
   if (days === 0) {
@@ -28,14 +43,10 @@ export async function POST(request) {
     );
   }
 
-  const year = Number(startDate.slice(0, 4));
-  const balance = await ensureBalance(user.id, year);
-  const left = remaining(balance);
-  const pool = kind === 'SICK' ? left.sick : left.planned;
-
+  const pool = kind === 'SICK' ? user.sickLeaveBalance : user.casualLeaveBalance;
   if (days > pool) {
     return Response.json(
-      { error: `That is ${days} days and you have ${pool} left in ${kind.toLowerCase()} leave.` },
+      { error: `That is ${days} days and you have ${pool} left in ${KIND_LABEL[kind]} leave.` },
       { status: 409 },
     );
   }
@@ -70,10 +81,14 @@ export async function GET() {
   const { user, error } = await apiUser();
   if (error) return error;
 
-  const [requests, balance] = await Promise.all([
-    prisma.leaveRequest.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' } }),
-    ensureBalance(user.id, currentYear()),
-  ]);
+  const requests = await prisma.leaveRequest.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: 'desc' },
+  });
 
-  return Response.json({ requests, balance, remaining: remaining(balance) });
+  return Response.json({
+    requests,
+    balance: { casual: user.casualLeaveBalance, sick: user.sickLeaveBalance },
+    today: dayKey(),
+  });
 }
