@@ -276,6 +276,21 @@ something in both:
   attendance bands. Never used to encode a quantity, and always shipped with a
   text label rather than colour alone.
 
+## Feeling responsive
+
+Every button that triggers a save has its own spinner. On top of that, a thin
+bar at the very top of the page (`components/NavProgress.js`) shows while a
+navigation or a `router.refresh()` is in flight — so clicking a sidebar link,
+a tab, or anything that redraws the screen never reads as a dead click while
+the new content streams in. It's driven by watching link clicks and URL
+changes, not by a route-level `loading.js` — the app tried that once and it
+silently turned every `redirect()`-based access gate into a no-op, so it's
+deliberately not used here.
+
+`lib/useRouter.js` is a drop-in replacement for `next/navigation`'s
+`useRouter` that flashes the bar around `push`/`replace`/`refresh` — every
+client component that navigates imports it from there instead.
+
 ## Testing
 
 ```bash

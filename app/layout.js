@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+import NavProgress from '../components/NavProgress';
 import './globals.css';
 
 export const metadata = {
@@ -15,6 +17,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
         <div className="phone-block">
           <div>
             <b>SYNCUP</b>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '../lib/useRouter';
 import Link from 'next/link';
 import { Icon } from './Icons';
 import { Avatar, Empty } from './ui';

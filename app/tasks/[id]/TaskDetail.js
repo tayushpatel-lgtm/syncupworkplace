@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '../../../lib/useRouter';
 import { Icon } from '../../../components/Icons';
 import { PageHead, Card, Empty, PriorityChip } from '../../../components/ui';
 
