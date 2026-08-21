@@ -259,7 +259,7 @@ export default function TaskDetail({ task, attachments, canDelete }) {
                     }}
                   />
                 </a>
-                <p className="mono" style={{ fontSize: 11, margin: '6px 0 0', color: 'var(--muted)' }}>
+                <p className="mono" style={{ fontSize: 11, margin: '6px 0 0', color: 'var(--ink-muted)' }}>
                   {a.filename.length > 20 ? `${a.filename.slice(0, 18)}…` : a.filename}
                 </p>
                 <button

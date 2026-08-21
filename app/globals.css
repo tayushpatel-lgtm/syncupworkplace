@@ -1,3 +1,13 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Tailwind + shadcn sit alongside the existing class-based UI.
+ * Existing screens keep using --ink / --ink-muted / --line / --paper.
+ * shadcn components use --background / --primary / --muted / --border. */
+
 /* ------------------------------------------------------------------ *
  * Syncup — a monochrome workspace. Colour is reserved for graphs,
  * priorities and warnings; every surface, control and border is grey.
@@ -6,7 +16,8 @@
 :root {
   --ink: #181818;
   --ink-soft: #535353;
-  --muted: #8a8a8a;
+  --ink-muted: #8a8a8a;
+  --muted: oklch(0.97 0 0);
   --faint: #a8a8a8;
   --line: #e5e5e5;
   --line-soft: #efefef;
@@ -24,8 +35,38 @@
 
   --radius: 14px;
   --radius-sm: 10px;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 * {
@@ -49,6 +90,11 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+input,
+select,
+textarea {
   color: inherit;
 }
 
@@ -67,20 +113,46 @@ a {
 }
 
 .sidebar {
+  --nav-pad: 12px;
   position: sticky;
   top: 0;
   height: 100vh;
   background: var(--paper);
   border-right: 1px solid var(--line);
-  padding: 36px 14px 18px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
+  font-family: var(--sans);
 }
 
 .brand {
   padding: 0 12px;
   margin-bottom: 46px;
+}
+
+.sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 16px var(--nav-pad);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex: none;
+}
+
+.brand-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
 }
 
 .brand b {
@@ -89,6 +161,15 @@ a {
   font-size: 19px;
   letter-spacing: 0.32em;
   font-weight: 700;
+}
+
+.sidebar .brand b {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--ink);
 }
 
 .brand span {
@@ -100,42 +181,85 @@ a {
   color: var(--faint);
 }
 
-.nav-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  color: var(--faint);
-  margin: 26px 12px 8px;
+.sidebar .brand span {
+  margin-top: 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.2;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.nav-label:first-of-type {
-  margin-top: 0;
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px var(--nav-pad);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-section {
+  padding: 0;
+}
+
+.nav-label {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: capitalize;
+  color: var(--muted-foreground);
+  margin: 0;
+  padding: 0 8px 8px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  padding: 11px 14px;
-  margin: 1px 0;
+  padding: 8px;
+  margin: 0;
   border: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: transparent;
-  color: var(--ink-soft);
-  font-size: 15px;
+  color: var(--muted-foreground);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
 }
 
 .nav-item:hover {
-  background: var(--hover);
-  color: var(--ink);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .nav-item.active {
-  background: var(--ink);
-  color: #fff;
+  background: color-mix(in oklch, var(--primary) 82%, var(--background));
+  color: var(--primary-foreground);
+}
+
+.nav-item.active .ico {
+  color: var(--primary-foreground);
+}
+
+.nav-item.active .nav-badge {
+  background: var(--primary-foreground);
+  color: var(--primary);
 }
 
 .nav-item .ico {
@@ -147,7 +271,7 @@ a {
 
 .nav-badge {
   margin-left: auto;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 11px;
   background: var(--red);
   color: #fff;
@@ -155,39 +279,77 @@ a {
   padding: 2px 7px;
 }
 
-.nav-item.active .nav-badge {
-  background: #fff;
-  color: var(--ink);
-}
-
 .sidebar-foot {
-  margin-top: auto;
-  padding: 16px 8px 0;
+  align-self: stretch;
+  width: auto;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px var(--nav-pad);
   border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 4px;
+  flex: none;
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.sidebar-user:hover {
+  background: var(--hover);
+}
+
+.sidebar-user-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-foot .avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
 }
 
 .sidebar-foot b {
   display: block;
-  font-size: 14px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar-foot small {
   display: block;
-  margin-top: 3px;
-  color: var(--faint);
+  margin-top: 1px;
+  color: var(--ink-muted);
+  font-family: var(--sans);
   font-size: 12px;
+  line-height: 1.25;
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sign-out {
-  margin-left: auto;
+  margin-left: 0;
+  flex: none;
   border: 0;
   background: transparent;
   color: var(--faint);
   cursor: pointer;
-  padding: 6px;
+  padding: 8px;
   border-radius: 8px;
 }
 
@@ -219,7 +381,7 @@ a {
 
 .page-head p {
   margin: 9px 0 0;
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 15px;
 }
 
@@ -267,7 +429,7 @@ a {
 
 .card-head p {
   margin: 6px 0 0;
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 14px;
   line-height: 1.5;
   max-width: 76ch;
@@ -320,14 +482,14 @@ a {
 }
 
 .hint {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13.5px;
   line-height: 1.55;
   margin: 9px 0 0;
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--ink-muted);
 }
 
 .empty {
@@ -531,7 +693,7 @@ a {
 .check .label small {
   display: block;
   margin-top: 5px;
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13.5px;
   line-height: 1.5;
 }
@@ -630,7 +792,7 @@ a {
   background: transparent;
   padding: 0 0 14px;
   margin-bottom: -1px;
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 15px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -650,7 +812,7 @@ a {
 .segmented button {
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--ink-muted);
   padding: 7px 14px;
   border-radius: 8px;
   font-size: 14px;
@@ -837,7 +999,7 @@ a {
 .stat small {
   display: block;
   margin-top: 10px;
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13px;
 }
 
@@ -877,7 +1039,7 @@ a {
   align-items: center;
   gap: 9px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--ink-muted);
 }
 
 .legend .ramp {
@@ -1006,7 +1168,7 @@ a {
   padding-top: 12px;
   border-top: 1px solid var(--line-soft);
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--ink-muted);
 }
 
 /* A hairline of colour on the left edge carries the priority. */
@@ -1160,7 +1322,7 @@ a {
 .cal-cell .d {
   font-family: var(--mono);
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--ink-muted);
 }
 
 .cal-cell.today {
@@ -1169,7 +1331,7 @@ a {
 
 .cal-cell .tag {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--ink-muted);
   line-height: 1.3;
 }
 
@@ -1279,7 +1441,7 @@ a {
 .list-row small {
   display: block;
   margin-top: 5px;
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13.5px;
 }
 
@@ -1335,7 +1497,7 @@ a {
 
 .modal-head p {
   margin: 6px 0 0;
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -1384,7 +1546,7 @@ a {
   }
 
   .phone-block p {
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 15px;
     line-height: 1.6;
     max-width: 34ch;
@@ -1396,4 +1558,164 @@ a {
   .sidebar {
     display: none;
   }
+}
+
+@theme inline {
+  --font-heading: var(--sans);
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Keep Syncup's 10px small radius; shadcn theme would otherwise overwrite it. */
+:root {
+  --radius-sm: 10px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Sonner toasts — white card, no shadow, filled status icon, title + copy. */
+[data-sonner-toaster],
+[data-sonner-toast],
+[data-sonner-toast] [data-title],
+[data-sonner-toast] [data-description],
+[data-sonner-toast] [data-close-button] {
+  font-family: var(--sans) !important;
+}
+
+[data-sonner-toast] {
+  align-items: flex-start !important;
+  gap: 12px !important;
+  width: 360px !important;
+  padding: 16px 36px 16px 16px !important;
+  background: #fff !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+[data-sonner-toast] [data-icon] {
+  margin-top: 1px;
+  width: auto !important;
+  height: auto !important;
+}
+
+[data-sonner-toast] [data-content] {
+  gap: 2px !important;
+}
+
+[data-sonner-toast] [data-title] {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}
+
+[data-sonner-toast] [data-description] {
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  color: var(--ink-muted) !important;
+}
+
+[data-sonner-toast] [data-close-button] {
+  left: auto !important;
+  right: 10px !important;
+  top: 10px !important;
+  transform: none !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--faint) !important;
+  box-shadow: none !important;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  color: var(--ink-soft) !important;
+  background: transparent !important;
+}
+
+[data-sonner-toast] [data-close-button] svg {
+  width: 12px;
+  height: 12px;
 }

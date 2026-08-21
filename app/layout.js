@@ -1,9 +1,21 @@
+import { Inter, Geist_Mono } from 'next/font/google';
 import { Suspense } from 'react';
 import NavProgress from '../components/NavProgress';
+import { Toaster } from '@/components/ui/sonner';
 import './globals.css';
 
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+});
+
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
+});
+
 export const metadata = {
-  title: 'Syncup',
+  title: 'Syncup Workspace',
   description: 'Team operations — the working day, tasks, attendance and leave in one place.',
 };
 
@@ -15,8 +27,8 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={`${inter.variable} ${geistMono.variable}`}>
+      <body className={inter.className}>
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
@@ -30,6 +42,7 @@ export default function RootLayout({ children }) {
           </div>
         </div>
         {children}
+        <Toaster />
       </body>
     </html>
   );

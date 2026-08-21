@@ -4,7 +4,21 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useRouter } from '../lib/useRouter';
 import Link from 'next/link';
-import { Icon } from './Icons';
+import {
+  BarChart3,
+  Calendar,
+  Clock,
+  FileText,
+  KeyRound,
+  LayoutGrid,
+  List,
+  Loader2,
+  LogOut,
+  Pencil,
+  Settings,
+  Users,
+  Zap,
+} from 'lucide-react';
 
 const MY_WORK = [
   ['/', 'bolt', 'My day'],
@@ -27,13 +41,37 @@ const ADMINISTRATION = [
   ['/admin/settings', 'gear', 'Settings'],
 ];
 
+const ICONS = {
+  bolt: Zap,
+  list: List,
+  grid: LayoutGrid,
+  calendar: Calendar,
+  doc: FileText,
+  edit: Pencil,
+  clock: Clock,
+  users: Users,
+  chart: BarChart3,
+  key: KeyRound,
+  gear: Settings,
+};
+
+const ROLE_LABEL = {
+  EMPLOYEE: 'Employee',
+  ADMIN: 'Admin',
+  CEO: 'CEO',
+};
+
+function workspaceSubtitle(user) {
+  return user.department || user.title || ROLE_LABEL[user.role] || user.role;
+}
+
 function isActive(pathname, href) {
   if (href === '/' || href === '/admin') return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 function Item({ href, glyph, label, pathname, badge }) {
-  const Glyph = Icon[glyph];
+  const Glyph = ICONS[glyph];
   return (
     <Link
       href={href}
@@ -41,7 +79,7 @@ function Item({ href, glyph, label, pathname, badge }) {
       prefetch={false}
     >
       <span className="ico">
-        <Glyph />
+        <Glyph size={18} strokeWidth={1.75} />
       </span>
       {label}
       {badge > 0 && <span className="nav-badge">{badge}</span>}
@@ -65,37 +103,43 @@ export default function Nav({ user, pendingLeave = 0 }) {
   return (
     <nav className="sidebar">
       <Link href="/" className="brand" prefetch={false}>
-        <b>SYNCUP</b>
-        <span>{admin ? 'ADMINISTRATION' : 'WORKSPACE'}</span>
+        <img src="/icon.svg" alt="" width={36} height={36} className="brand-mark" />
+        <div className="brand-copy">
+          <b>Syncup</b>
+          <span>{workspaceSubtitle(user)}</span>
+        </div>
       </Link>
 
-      <p className="nav-label">MY WORK</p>
-      {MY_WORK.map(([href, glyph, label]) => (
-        <Item key={href} href={href} glyph={glyph} label={label} pathname={pathname} />
-      ))}
-
-      {admin && (
-        <>
-          <p className="nav-label">ADMINISTRATION</p>
-          {ADMINISTRATION.map(([href, glyph, label]) => (
-            <Item
-              key={href}
-              href={href}
-              glyph={glyph}
-              label={label}
-              pathname={pathname}
-              badge={href === '/admin/leave' ? pendingLeave : 0}
-            />
+      <div className="sidebar-scroll">
+        <div className="nav-section">
+          {MY_WORK.map(([href, glyph, label]) => (
+            <Item key={href} href={href} glyph={glyph} label={label} pathname={pathname} />
           ))}
-        </>
-      )}
+        </div>
+
+        {admin && (
+          <div className="nav-section">
+            <p className="nav-label">Administration</p>
+            {ADMINISTRATION.map(([href, glyph, label]) => (
+              <Item
+                key={href}
+                href={href}
+                glyph={glyph}
+                label={label}
+                pathname={pathname}
+                badge={href === '/admin/leave' ? pendingLeave : 0}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="sidebar-foot">
-        <Link href="/account" style={{ display: 'contents' }} title="Your account">
+        <Link href="/account" className="sidebar-user" prefetch={false} title="Your account">
           <span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>
-          <div>
+          <div className="sidebar-user-meta">
             <b>{user.name}</b>
-            <small>{user.title || user.role.toLowerCase()}</small>
+            <small>{user.title || ROLE_LABEL[user.role] || user.role}</small>
           </div>
         </Link>
         <button
@@ -105,7 +149,7 @@ export default function Nav({ user, pendingLeave = 0 }) {
           title="Sign out"
           aria-label="Sign out"
         >
-          {signingOut ? <Icon.spinner width={18} height={18} /> : <Icon.exit />}
+          {signingOut ? <Loader2 size={18} strokeWidth={1.75} className="animate-spin" /> : <LogOut size={18} strokeWidth={1.75} />}
         </button>
       </div>
     </nav>

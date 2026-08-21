@@ -485,7 +485,7 @@ export default function PeopleManager({
               />
               <div>
                 <b style={{ fontSize: 15, fontWeight: 500 }}>Change password on next sign-in</b>
-                <small style={{ display: 'block', marginTop: 4, color: 'var(--muted)', lineHeight: 1.5 }}>
+                <small style={{ display: 'block', marginTop: 4, color: 'var(--ink-muted)', lineHeight: 1.5 }}>
                   They land on a &quot;set your own password&quot; screen before anything else. Clears
                   itself once they do.
                 </small>

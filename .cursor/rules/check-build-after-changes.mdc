@@ -1,0 +1,13 @@
+---
+description: After any code change, verify there is no compile/build error before finishing.
+alwaysApply: true
+---
+
+# Check compile errors after every change
+
+Do not end a turn after editing app code until you have confirmed it compiles.
+
+1. After writing or patching `.js`, `.jsx`, `.ts`, or `.tsx` files, read the running `next dev` terminal for Turbopack/parse errors (`Parsing ecmascript source code failed`, `Module not found`, compile 500s).
+2. Do not use `node --check` on JSX files — it cannot parse JSX and will false-fail.
+3. If the terminal shows a parse/compile error, fix it in the same turn before telling the user you are done.
+4. Never leave a function body without its `function` / `const` declaration.
