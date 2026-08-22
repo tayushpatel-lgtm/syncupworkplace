@@ -21,6 +21,7 @@ describe('settings validation', () => {
         workingDays: original.workingDays,
         defaultCheckInBy: original.defaultCheckInBy,
         idleAfterMinutes: original.idleAfterMinutes,
+        staleBreakAlertMinutes: original.staleBreakAlertMinutes,
         minPresentMinutes: original.minPresentMinutes,
       },
     });
@@ -44,6 +45,13 @@ describe('settings validation', () => {
   it('rejects an idle cut-off outside 2..120 minutes', async () => {
     const tooLow = await api('/api/settings', { method: 'POST', cookie: ceoCookie, body: { idleAfterMinutes: 1 } });
     const tooHigh = await api('/api/settings', { method: 'POST', cookie: ceoCookie, body: { idleAfterMinutes: 121 } });
+    expect(tooLow.status).toBe(400);
+    expect(tooHigh.status).toBe(400);
+  });
+
+  it('rejects a stale-break alert outside 5..240 minutes', async () => {
+    const tooLow = await api('/api/settings', { method: 'POST', cookie: ceoCookie, body: { staleBreakAlertMinutes: 4 } });
+    const tooHigh = await api('/api/settings', { method: 'POST', cookie: ceoCookie, body: { staleBreakAlertMinutes: 241 } });
     expect(tooLow.status).toBe(400);
     expect(tooHigh.status).toBe(400);
   });

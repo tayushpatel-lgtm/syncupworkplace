@@ -15,6 +15,14 @@
     {
       "path": "/api/cron/leave-accrual",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-idle",
+      "schedule": "*/20 * * * *"
+    },
+    {
+      "path": "/api/cron/check-in-nudge",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -14,6 +14,6 @@ export async function POST(request) {
   }
 
   await reconcileSessions(user.id);
-  await switchSession(user, kind, dayKey());
-  return Response.json({ ok: true });
+  const result = await switchSession(user, kind, dayKey());
+  return Response.json({ ok: true, skipped: !!result?.skipped });
 }

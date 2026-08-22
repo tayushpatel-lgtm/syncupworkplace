@@ -100,6 +100,8 @@ model User {
   lastLeaveAccrualMonth String?
   /// Per-person override for the check-in deadline, "HH:MM". Falls back to Settings.defaultCheckInBy.
   checkInBy    String?
+  /// Last company-local day a "check in soon" Slack DM went out, so the 5-minute cron does not repeat itself.
+  lastCheckInNudgeOn DateTime? @db.Date
   /// Per-person override for the minimum worked minutes to count as present. Falls back to Settings.minPresentMinutes.
   minPresentMinutes Int?
   /// Cached result of a Slack users.lookupByEmail call, so a DM doesn't re-resolve it every time.
@@ -124,6 +126,7 @@ model User {
   passwordShares     PasswordShare[]
   mcpTokens          McpToken[]           @relation("McpTokenOwner")
   oauthCodes         OAuthCode[]
+  sessionAudits      SessionAuditLog[]    @relation("SessionAuditActor")
 
   @@index([active])
 }
@@ -174,8 +177,12 @@ model Settings {
   slackDmOnAbsent Boolean @default(false)
   /// A running session got auto-closed for going quiet past the idle cut-off.
   slackDmOnInactive Boolean @default(false)
+  /// A BREAK session went stale past staleBreakAlertMinutes — forgotten break, not work inactivity.
+  slackDmOnStaleBreak Boolean @default(false)
   /// Today's plan, sent right after check-in.
   slackDmOnDailyPlan Boolean @default(false)
+  /// 15 minutes before their own check-in time (09:30 → 09:15, 10:00 → 09:45).
+  slackDmOnCheckInSoon Boolean @default(true)
   /// Mirrors the channel check-in post to the person themselves.
   slackDmOnCheckin Boolean @default(true)
   /// Mirrors the channel check-out post to the person themselves.
@@ -197,6 +204,8 @@ model Settings {
 
   // Heartbeat: minutes without a beat before the stretch is discarded as idle
   idleAfterMinutes Int @default(30)
+  /// Minutes a BREAK session can sit stale before a Slack DM fires (independent of idleAfterMinutes).
+  staleBreakAlertMinutes Int @default(30)
 
   // Presence
   /// Minutes of recorded work a day needs to count as present, company default.
@@ -257,11 +266,37 @@ model WorkSession {
   lastBeatAt  DateTime?
   /// Seconds reclassified as idle out of this session's span.
   idleSeconds Int         @default(0)
+  /// Settings.idleAfterMinutes frozen at session creation, so a later settings
+  /// change does not rewrite how already-elapsed silence is judged.
+  idleCutoffMinutes Int @default(30)
+  /// userId while this session is open, null once closed. Unique, so Postgres
+  /// enforces at most one open session per person — the Prisma 6 equivalent of
+  /// UNIQUE (userId) WHERE endedAt IS NULL (partial unique indexes are not in
+  /// the schema language until Prisma 7.4).
+  openUserId String? @unique
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
   @@index([date])
+  @@index([endedAt])
+}
+
+/// Admin edits and merges of work sessions. A reason is required on every write.
+model SessionAuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  reason    String
+  userId    String
+  before    Json
+  after     Json
+  createdAt DateTime @default(now())
+
+  actor User @relation("SessionAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([actorId])
 }
 
 /// A point on someone's plan for the day. Unfinished points carry to the next working day.

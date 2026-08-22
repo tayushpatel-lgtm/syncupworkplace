@@ -19,6 +19,10 @@ export async function POST(request) {
   const key = dayKey();
   await reconcileSessions(user.id, settings);
 
+  // Close first when ending the day, so the frozen report minutes are a
+  // closed-session sum and never include an in-progress NaN/live stretch.
+  if (closeDay) await checkOut(user, key);
+
   // The check-out popup submits the final tick state for every point in one go.
   if (Array.isArray(doneIds)) {
     const keep = new Set(doneIds.map(String));
@@ -67,10 +71,7 @@ export async function POST(request) {
     update: { summary: text, submittedAt: new Date(), ...frozen },
   });
 
-  if (closeDay) {
-    await checkOut(user, key);
-    await sendCheckOutNotice(user, key, text);
-  }
+  if (closeDay) await sendCheckOutNotice(user, key, text);
 
   return Response.json({ ok: true });
 }

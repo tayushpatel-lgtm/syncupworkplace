@@ -12,8 +12,11 @@ import {
   formatClock,
   formatDuration,
   formatHours,
+  startOfDay,
+  endOfDay,
   zonedTimeToUtc,
   timeKey,
+  closedMinutes,
 } from '../../lib/dates.js';
 
 describe('dayKey / dayDate', () => {
@@ -145,6 +148,34 @@ describe('zonedTimeToUtc', () => {
   it('round-trips through timeKey back to the same wall clock time', () => {
     const instant = zonedTimeToUtc('2026-08-17', '14:07');
     expect(timeKey(instant)).toBe('14:07');
+  });
+});
+
+describe('startOfDay / endOfDay (company-local, not UTC)', () => {
+  it('places midnight at 18:30 UTC the previous evening for Asia/Kolkata', () => {
+    expect(startOfDay('2026-08-17').toISOString()).toBe('2026-08-16T18:30:00.000Z');
+    expect(endOfDay('2026-08-17').toISOString()).toBe('2026-08-17T18:30:00.000Z');
+  });
+
+  it('endOfDay of one key is startOfDay of the next, so a split has no gap', () => {
+    expect(endOfDay('2026-08-17').getTime()).toBe(startOfDay('2026-08-18').getTime());
+  });
+});
+
+describe('closedMinutes', () => {
+  it('returns 0 for an open session instead of NaN', () => {
+    expect(closedMinutes(new Date('2026-08-17T04:00:00.000Z'), null)).toBe(0);
+    expect(closedMinutes(new Date('2026-08-17T04:00:00.000Z'), undefined)).toBe(0);
+  });
+
+  it('returns 0 rather than NaN when a timestamp is unreadable', () => {
+    expect(closedMinutes(new Date('2026-08-17T04:00:00.000Z'), new Date('not-a-date'))).toBe(0);
+  });
+
+  it('counts a closed hour as 60 minutes', () => {
+    expect(
+      closedMinutes(new Date('2026-08-17T04:00:00.000Z'), new Date('2026-08-17T05:00:00.000Z')),
+    ).toBe(60);
   });
 });
 

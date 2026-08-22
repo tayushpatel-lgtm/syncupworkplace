@@ -70,7 +70,9 @@ describe('Slack bot and Sheets settings', () => {
         slackDmOnAssign: false,
         slackDmOnAbsent: true,
         slackDmOnInactive: true,
+        slackDmOnStaleBreak: true,
         slackDmOnDailyPlan: true,
+        slackDmOnCheckInSoon: false,
         slackDmOnCheckin: false,
         slackDmOnCheckout: false,
         slackDmOnStatus: false,
@@ -83,7 +85,9 @@ describe('Slack bot and Sheets settings', () => {
     expect(settings.slackDmOnAssign).toBe(false);
     expect(settings.slackDmOnAbsent).toBe(true);
     expect(settings.slackDmOnInactive).toBe(true);
+    expect(settings.slackDmOnStaleBreak).toBe(true);
     expect(settings.slackDmOnDailyPlan).toBe(true);
+    expect(settings.slackDmOnCheckInSoon).toBe(false);
     expect(settings.slackDmOnCheckin).toBe(false);
     expect(settings.slackDmOnCheckout).toBe(false);
     expect(settings.slackDmOnStatus).toBe(false);
@@ -98,7 +102,9 @@ describe('Slack bot and Sheets settings', () => {
         slackDmOnAssign: true,
         slackDmOnAbsent: false,
         slackDmOnInactive: false,
+        slackDmOnStaleBreak: false,
         slackDmOnDailyPlan: false,
+        slackDmOnCheckInSoon: true,
         slackDmOnCheckin: true,
         slackDmOnCheckout: true,
         slackDmOnStatus: true,
@@ -136,7 +142,33 @@ describe('EOD summary cron', () => {
   });
 });
 
-describe('Sheets sync cron', () => {
+describe('Check-in nudge cron', () => {
+  let ceoCookie;
+
+  beforeAll(async () => {
+    ceoCookie = await loginAsCeo();
+  });
+
+  it('requires CRON_SECRET as a bearer token on the scheduled path', async () => {
+    const noAuth = await fetch(`${BASE_URL}/api/cron/check-in-nudge`);
+    expect([401, 503]).toContain(noAuth.status);
+
+    const wrong = await fetch(`${BASE_URL}/api/cron/check-in-nudge`, { headers: { Authorization: 'Bearer wrong' } });
+    expect([401, 503]).toContain(wrong.status);
+  });
+
+  it('a non-admin cannot fire it by hand', async () => {
+    const person = await createPerson(ceoCookie);
+    const res = await api('/api/cron/check-in-nudge', { method: 'POST', cookie: person.cookie });
+    expect(res.status).toBe(403);
+  });
+
+  it('an admin can fire it by hand', async () => {
+    const res = await api('/api/cron/check-in-nudge', { method: 'POST', cookie: ceoCookie });
+    expect(res.status).toBe(200);
+    expect(typeof res.json.nudged).toBe('number');
+  });
+});
   let ceoCookie;
 
   beforeAll(async () => {

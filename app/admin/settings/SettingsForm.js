@@ -262,8 +262,56 @@ export default function SettingsForm({
           />
           <span className="muted" style={{ fontSize: 13.5 }}>
             Minutes of silence from a running timer before the stretch stops counting as work.
+            Frozen onto each session when it starts, so changing this mid-day does not rewrite
+            already-elapsed silence.
           </span>
         </div>
+
+        <div className="divider" />
+
+        <label className="field-label">STALE BREAK ALERT AFTER</label>
+        <div className="row">
+          <input
+            className="input"
+            type="number"
+            min={5}
+            max={240}
+            style={{ width: 180 }}
+            value={form.staleBreakAlertMinutes ?? 30}
+            onChange={(e) => set({ staleBreakAlertMinutes: Number(e.target.value) })}
+          />
+          <span className="muted" style={{ fontSize: 13.5 }}>
+            Minutes of silence on a BREAK session before a Slack DM fires. Forgotten breaks
+            otherwise produce no signal at all.
+          </span>
+        </div>
+
+        <div className="divider" />
+
+        <label className="field-label">ABANDONED SESSIONS</label>
+        <p className="hint" style={{ marginTop: 0 }}>
+          {cronConfigured
+            ? 'A scheduled pass every 20 minutes closes stale open sessions for everyone, even if they never reopen My day.'
+            : "CRON_SECRET isn't set, so the scheduled pass is closed off. You can still fire one by hand below."}
+        </p>
+        <button
+          className="btn"
+          style={{ marginTop: 16 }}
+          disabled={actionBusy === 'reconcile'}
+          onClick={() =>
+            withBusy('reconcile', async () => {
+              const data = await post('/api/cron/reconcile-idle', {}, null);
+              if (data) {
+                setNotice(
+                  `Reconciled ${data.users || 0} ${data.users === 1 ? 'person' : 'people'} — ${data.closed || 0} session${data.closed === 1 ? '' : 's'} closed.`,
+                );
+              }
+            })
+          }
+        >
+          {actionBusy === 'reconcile' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
+          Reconcile stale sessions now
+        </button>
       </Card>
 
       <Card
@@ -731,6 +779,13 @@ export default function SettingsForm({
               detail="The same check-in post, sent to them personally too — easy to miss in a busy shared channel."
             />
             <Check
+              checked={form.slackDmOnCheckInSoon ?? true}
+              onChange={(v) => set({ slackDmOnCheckInSoon: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Check-in in 15 minutes"
+              detail="A personal DM 15 minutes before their own start time — 09:30 people at 09:15, 10:00 people at 09:45. Uses the time on their People record, or the company default."
+            />
+            <Check
               checked={form.slackDmOnCheckout}
               onChange={(v) => set({ slackDmOnCheckout: v })}
               disabled={!form.slackBotEnabled || !form.slackDmEnabled}
@@ -764,6 +819,13 @@ export default function SettingsForm({
               disabled={!form.slackBotEnabled || !form.slackDmEnabled}
               title="Checked out for inactivity"
               detail={'"You were checked out automatically" — their running session went quiet past the idle cut-off (device asleep or off, not just a tab or window switch).'}
+            />
+            <Check
+              checked={form.slackDmOnStaleBreak}
+              onChange={(v) => set({ slackDmOnStaleBreak: v })}
+              disabled={!form.slackBotEnabled || !form.slackDmEnabled}
+              title="Forgotten break"
+              detail={'"Your break was closed automatically" — a BREAK session went quiet past the stale-break alert (they took a break and never came back).'}
             />
             <Check
               checked={form.slackDmOnDailyPlan}
@@ -802,6 +864,35 @@ export default function SettingsForm({
         >
           {actionBusy === 'eod-summary' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
           Send today's summary now
+        </button>
+
+        <div className="divider" />
+
+        <label className="field-label">CHECK-IN NUDGE</label>
+        <p className="hint" style={{ marginTop: 0 }}>
+          {cronConfigured
+            ? 'Scheduled every 5 minutes. Each person is messaged 15 minutes before their own check-in time, once per working day.'
+            : "CRON_SECRET isn't set, so the scheduled run is closed off. You can still fire one by hand below — it only sends if someone is currently in that 15-minute window."}
+        </p>
+        <button
+          className="btn"
+          style={{ marginTop: 16 }}
+          disabled={actionBusy === 'check-in-nudge'}
+          onClick={() =>
+            withBusy('check-in-nudge', async () => {
+              const data = await post('/api/cron/check-in-nudge', {}, null);
+              if (data) {
+                setNotice(
+                  data.nudged
+                    ? `Check-in nudge: ${data.nudged} ${data.nudged === 1 ? 'person' : 'people'} in the window, ${data.delivered || 0} delivered.`
+                    : `Nothing sent: ${data.reason || 'nobody is 15 minutes from check-in right now'}.`,
+                );
+              }
+            })
+          }
+        >
+          {actionBusy === 'check-in-nudge' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
+          Send check-in nudges now
         </button>
       </Card>
 

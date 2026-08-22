@@ -204,8 +204,12 @@ export default function MyDay(props) {
     return () => clearInterval(id);
   }, [running?.kind, running?.startedAt]);
 
-  const workSeconds = totals.work * 60 + (running?.kind === 'WORK' ? elapsed : 0);
-  const breakSeconds = totals.break * 60 + (running?.kind === 'BREAK' ? elapsed : 0);
+  const workSeconds =
+    (totals.work + (running?.kind === 'WORK' ? totals.liveWork || 0 : 0)) * 60 +
+    (running?.kind === 'WORK' ? elapsed : 0);
+  const breakSeconds =
+    (totals.break + (running?.kind === 'BREAK' ? totals.liveBreak || 0 : 0)) * 60 +
+    (running?.kind === 'BREAK' ? elapsed : 0);
 
   const donePoints = plan.filter((p) => p.done).length;
   const progress = plan.length ? Math.round((donePoints / plan.length) * 100) : 0;
@@ -321,12 +325,12 @@ export default function MyDay(props) {
 
   const composed = useMemo(
     () => [
-      ['Recorded work', short(totals.work)],
-      ['On break', short(totals.break)],
-      ['Discarded as idle', short(totals.idle)],
+      ['Recorded work', short(totals.work + (totals.liveWork || 0))],
+      ['On break', short(totals.break + (totals.liveBreak || 0))],
+      ['Discarded as idle', short(totals.idle + (totals.liveIdle || 0))],
       ['Plan points ticked', `${donePoints} of ${plan.length}`],
     ],
-    [totals.work, totals.break, totals.idle, donePoints, plan.length],
+    [totals.work, totals.break, totals.idle, totals.liveWork, totals.liveBreak, totals.liveIdle, donePoints, plan.length],
   );
 
   const checkInPopup = checkInItems && (

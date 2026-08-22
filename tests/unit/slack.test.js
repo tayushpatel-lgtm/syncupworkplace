@@ -5,7 +5,9 @@ import {
   eodSummaryMessage,
   taskAssignedDm,
   markedAbsentDm,
+  checkInSoonDm,
   checkedOutInactiveDm,
+  staleBreakDm,
   taskForTodayDm,
   checkInDm,
   checkOutDm,
@@ -71,10 +73,24 @@ describe('Slack bot message builders', () => {
     expect(dm.blocks[0].text.text).toContain('marked absent for 2026-08-16');
   });
 
+  it('names the person\'s own start time in the check-in-soon DM', () => {
+    const dm = checkInSoonDm('09:30 AM', 15);
+    expect(dm.text).toContain('15 minutes');
+    expect(dm.blocks[0].text.text).toContain('09:30 AM');
+    expect(dm.blocks[0].text.text).toContain('15 minutes');
+  });
+
   it('reports the idle cut-off and hours worked in a checked-out-for-inactivity DM', () => {
     const dm = checkedOutInactiveDm(125, 30);
     expect(dm.blocks[0].text.text).toContain('30 minutes');
     expect(dm.blocks[0].text.text).toContain('2.1h');
+  });
+
+  it('reports the alert threshold in a forgotten-break DM', () => {
+    const dm = staleBreakDm(45, 30);
+    expect(dm.text).toContain('break was closed automatically');
+    expect(dm.blocks[0].text.text).toContain('30 minutes');
+    expect(dm.blocks[0].text.text).toContain('0.8h');
   });
 
   it('lists today\'s plan points, or says the plan is empty', () => {

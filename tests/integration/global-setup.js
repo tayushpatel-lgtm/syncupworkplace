@@ -1,7 +1,11 @@
 import { execFileSync, spawn } from 'node:child_process';
+import path from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { TEST_DB_URL, TEST_PORT, TEST_SESSION_SECRET, BASE_URL, FIXTURE, TEST_PASSWORD } from './config.js';
+
+const prismaCli = path.join(process.cwd(), 'node_modules', 'prisma', 'build', 'index.js');
+const nextCli = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
 
 /**
  * Runs once for the whole suite: resets a dedicated test database, seeds the
@@ -11,7 +15,7 @@ import { TEST_DB_URL, TEST_PORT, TEST_SESSION_SECRET, BASE_URL, FIXTURE, TEST_PA
  * the same way a user would.
  */
 export default async function setup() {
-  execFileSync('npx', ['prisma', 'db', 'push', '--force-reset', '--skip-generate'], {
+  execFileSync(process.execPath, [prismaCli, 'db', 'push', '--force-reset', '--skip-generate'], {
     stdio: 'inherit',
     env: { ...process.env, DATABASE_URL: TEST_DB_URL },
   });
@@ -19,6 +23,9 @@ export default async function setup() {
   const prisma = new PrismaClient({ datasourceUrl: TEST_DB_URL });
   try {
     await prisma.settings.create({ data: { id: 1 } });
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "WorkSession_userId_open_key" ON "WorkSession" ("userId") WHERE "endedAt" IS NULL`,
+    );
 
     const steps = [];
     for (const [i, title] of ['Read the handbook', 'Set up two-factor'].entries()) {
@@ -46,7 +53,7 @@ export default async function setup() {
 
   // Dev mode, not a production build: route handler behaviour is identical
   // either way, and skipping the build keeps the suite fast to iterate on.
-  const server = spawn('npx', ['next', 'dev', '-p', String(TEST_PORT)], {
+  const server = spawn(process.execPath, [nextCli, 'dev', '-p', String(TEST_PORT)], {
     cwd: process.cwd(),
     env: {
       ...process.env,

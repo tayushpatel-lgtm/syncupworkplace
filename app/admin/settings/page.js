@@ -60,7 +60,9 @@ export default async function SettingsPage() {
           slackDmOnAssign: settings.slackDmOnAssign,
           slackDmOnAbsent: settings.slackDmOnAbsent,
           slackDmOnInactive: settings.slackDmOnInactive,
+          slackDmOnStaleBreak: settings.slackDmOnStaleBreak,
           slackDmOnDailyPlan: settings.slackDmOnDailyPlan,
+          slackDmOnCheckInSoon: settings.slackDmOnCheckInSoon,
           slackDmOnCheckin: settings.slackDmOnCheckin,
           slackDmOnCheckout: settings.slackDmOnCheckout,
           slackDmOnStatus: settings.slackDmOnStatus,
@@ -69,6 +71,7 @@ export default async function SettingsPage() {
           sheetsClientEmail: settings.sheetsClientEmail || '',
           sheetsSpreadsheetId: settings.sheetsSpreadsheetId || '',
           idleAfterMinutes: settings.idleAfterMinutes,
+          staleBreakAlertMinutes: settings.staleBreakAlertMinutes,
           minPresentMinutes: settings.minPresentMinutes,
         }}
         webhookSet={!!settings.slackWebhookUrl}

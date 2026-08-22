@@ -54,6 +54,14 @@ export async function POST(request) {
     data.minPresentMinutes = mins;
   }
 
+  if (body.staleBreakAlertMinutes !== undefined) {
+    const mins = Number(body.staleBreakAlertMinutes);
+    if (!Number.isInteger(mins) || mins < 5 || mins > 240) {
+      return Response.json({ error: 'Stale-break alert must be 5 to 240 minutes.' }, { status: 400 });
+    }
+    data.staleBreakAlertMinutes = mins;
+  }
+
   for (const flag of [
     'reportRequired',
     'planFromTasks',
@@ -70,7 +78,9 @@ export async function POST(request) {
     'slackDmOnAssign',
     'slackDmOnAbsent',
     'slackDmOnInactive',
+    'slackDmOnStaleBreak',
     'slackDmOnDailyPlan',
+    'slackDmOnCheckInSoon',
     'slackDmOnCheckin',
     'slackDmOnCheckout',
     'slackDmOnStatus',
