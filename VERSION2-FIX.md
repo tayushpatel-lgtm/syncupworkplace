@@ -134,7 +134,7 @@ Prisma 6 will warn that a unique constraint is being added on `WorkSession.openU
 
 **Was:** A double-click on “Take a break” (or a flaky retry) closed WORK, opened BREAK, then immediately closed BREAK and opened another BREAK — noise rows of 0–1 seconds.
 
-**Now:** `POST /api/day/session` no-ops (`{ ok: true, skipped: true }`) if the latest session is the **same kind** and started less than 5 seconds ago. Switching to the other kind, checking in then immediately taking a break, and “Back to work” after a real check-out are unaffected.
+**Now:** `POST /api/day/session` no-ops (`{ ok: true, skipped: true }`) if the latest **open** session is the **same kind** and started less than 5 seconds ago. Switching to the other kind, checking in then immediately taking a break, and “Back to work” after a real check-out are unaffected.
 
 **Example:** Two BREAK posts 200 ms apart → one BREAK row. BREAK then WORK in the same second → allowed (different kind). Check-out then WORK → allowed (latest start was this morning, not just now).
 

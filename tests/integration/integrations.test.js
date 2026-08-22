@@ -169,6 +169,8 @@ describe('Check-in nudge cron', () => {
     expect(typeof res.json.nudged).toBe('number');
   });
 });
+
+describe('Sheets sync cron', () => {
   let ceoCookie;
 
   beforeAll(async () => {
