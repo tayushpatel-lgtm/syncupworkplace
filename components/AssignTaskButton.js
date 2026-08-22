@@ -113,16 +113,17 @@ export default function AssignTaskButton({ people, currentUserId }) {
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
               />
             </div>
-            <div>
-              <label className="field-label">DETAIL — OPTIONAL</label>
-              <input
-                className="input"
-                placeholder="Anything they need to know"
-                value={form.detail}
-                onChange={(e) => setForm({ ...form, detail: e.target.value })}
-              />
-            </div>
           </div>
+
+          <label className="field-label" style={{ marginTop: 18 }}>
+            DETAIL — OPTIONAL
+          </label>
+          <textarea
+            className="textarea"
+            placeholder="Anything they need to know"
+            value={form.detail}
+            onChange={(e) => setForm({ ...form, detail: e.target.value })}
+          />
 
           <div className="row end" style={{ marginTop: 22 }}>
             <button className="btn" type="button" onClick={close}>

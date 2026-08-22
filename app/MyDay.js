@@ -1,10 +1,25 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Info } from 'lucide-react';
 import { useRouter } from '../lib/useRouter';
 import { Icon } from '../components/Icons';
 import { PageHead, Card, Empty, Modal } from '../components/ui';
 import { setUnloadGuardArmed } from '../components/UnloadGuard';
+
+function KeepTabOpenNotice() {
+  return (
+    <div className="keep-tab-notice" role="note">
+      <Info size={16} strokeWidth={1.75} aria-hidden />
+      <p>
+        Please don’t close this tab or the browser, time tracking depends on it staying
+        open. For other work, open a new tab or a new window:{' '}
+        <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>N</kbd> on Windows and Linux,{' '}
+        <kbd>⌘</kbd>+<kbd>T</kbd> / <kbd>⌘</kbd>+<kbd>N</kbd> on Mac.
+      </p>
+    </div>
+  );
+}
 
 const HEARTBEAT_MS = 60_000;
 
@@ -366,6 +381,7 @@ export default function MyDay(props) {
     return (
       <>
         <PageHead title="My day" subtitle={dayLabel} />
+        <KeepTabOpenNotice />
         <Card glyph="sun" title={holidayName || 'Not a working day'}>
           <p className="hint" style={{ marginTop: 0 }}>
             {holidayName
@@ -391,6 +407,7 @@ export default function MyDay(props) {
     return (
       <>
         <PageHead title="My day" subtitle={dayLabel} />
+        <KeepTabOpenNotice />
         <Card glyph="bolt" title={`Good to see you, ${user.name.split(' ')[0]}.`}>
           <p className="hint" style={{ marginTop: 0 }}>
             Check in to start the day. You&apos;ll tick off what&apos;s already on your plate — and
@@ -423,6 +440,7 @@ export default function MyDay(props) {
         <PageHead title="My day" subtitle={dayLabel}>
           {late && <span className="chip amber">late arrival</span>}
         </PageHead>
+        <KeepTabOpenNotice />
         <Card
           glyph="clipboard"
           title="What's the plan for today?"
@@ -456,6 +474,7 @@ export default function MyDay(props) {
         {late && <span className="chip amber">late arrival</span>}
         {checkedOut && <span className="chip green">day closed</span>}
       </PageHead>
+      <KeepTabOpenNotice />
 
       <Card>
         <div className="timer">
