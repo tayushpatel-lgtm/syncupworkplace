@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useRouter } from '../lib/useRouter';
+import { bypassUnloadGuard, restoreUnloadGuard } from './UnloadGuard';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 import {
   BarChart3,
   Calendar,
@@ -72,10 +74,19 @@ function isActive(pathname, href) {
 
 function Item({ href, glyph, label, pathname, badge }) {
   const Glyph = ICONS[glyph];
+  const active = isActive(pathname, href);
   return (
     <Link
       href={href}
-      className={`nav-item ${isActive(pathname, href) ? 'active' : ''}`}
+      data-active={active ? 'true' : undefined}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'nav-item bg-transparent text-muted-foreground',
+        'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+        'data-[active=true]:bg-[color-mix(in_oklch,var(--sidebar-accent),var(--sidebar-foreground)_8%)]',
+        'data-[active=true]:text-sidebar-accent-foreground',
+        'data-[active=true]:hover:bg-[color-mix(in_oklch,var(--sidebar-accent),var(--sidebar-foreground)_8%)]',
+      )}
       prefetch={false}
     >
       <span className="ico">
@@ -95,9 +106,15 @@ export default function Nav({ user, pendingLeave = 0 }) {
 
   async function signOut() {
     setSigningOut(true);
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
-    router.refresh();
+    bypassUnloadGuard();
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
+      router.refresh();
+    } catch {
+      restoreUnloadGuard();
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -105,7 +122,7 @@ export default function Nav({ user, pendingLeave = 0 }) {
       <Link href="/" className="brand" prefetch={false}>
         <img src="/icon.svg" alt="" width={36} height={36} className="brand-mark" />
         <div className="brand-copy">
-          <b>Syncup</b>
+          <b>Syncup Workspace</b>
           <span>{workspaceSubtitle(user)}</span>
         </div>
       </Link>

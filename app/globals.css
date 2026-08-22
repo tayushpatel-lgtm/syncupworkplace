@@ -170,6 +170,9 @@ a {
   letter-spacing: -0.01em;
   line-height: 1.2;
   color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .brand span {
@@ -233,33 +236,12 @@ a {
   padding: 8px;
   margin: 0;
   border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--muted-foreground);
+  border-radius: 6px;
   font-family: var(--sans);
   font-size: 14px;
   font-weight: 400;
   text-align: left;
   cursor: pointer;
-}
-
-.nav-item:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-
-.nav-item.active {
-  background: color-mix(in oklch, var(--primary) 82%, var(--background));
-  color: var(--primary-foreground);
-}
-
-.nav-item.active .ico {
-  color: var(--primary-foreground);
-}
-
-.nav-item.active .nav-badge {
-  background: var(--primary-foreground);
-  color: var(--primary);
 }
 
 .nav-item .ico {

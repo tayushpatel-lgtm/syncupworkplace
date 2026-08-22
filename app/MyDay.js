@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '../lib/useRouter';
 import { Icon } from '../components/Icons';
 import { PageHead, Card, Empty, Modal } from '../components/ui';
+import { setUnloadGuardArmed } from '../components/UnloadGuard';
 
 const HEARTBEAT_MS = 60_000;
 
@@ -224,6 +225,9 @@ export default function MyDay(props) {
       return false;
     }
     setElapsed(0);
+    if (url === '/api/day/session' && body?.kind && body.kind !== 'STOP') {
+      setUnloadGuardArmed(true);
+    }
     router.refresh();
     return true;
   }
@@ -249,6 +253,7 @@ export default function MyDay(props) {
       setError(data.error || 'Something went wrong.');
       return;
     }
+    setUnloadGuardArmed(true);
     setCheckInItems(data.plan.map((p) => ({ ...p, keep: true, isNew: false })));
     setCheckInDraft('');
     setCheckInError('');
@@ -310,6 +315,7 @@ export default function MyDay(props) {
       return;
     }
     setCheckOutItems(null);
+    setUnloadGuardArmed(false);
     router.refresh();
   }
 
@@ -499,7 +505,7 @@ export default function MyDay(props) {
               ? 'The day is closed. Reopen it by starting work again.'
               : running
                 ? running.kind === 'WORK'
-                  ? 'Counting. Close the tab and the clock stops with it.'
+                  ? 'Counting. Closing this tab or the browser will ask you to stay.'
                   : 'On a break — nothing is being counted.'
                 : 'The clock is stopped.'}
           </span>
