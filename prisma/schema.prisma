@@ -269,11 +269,11 @@ model WorkSession {
   /// Settings.idleAfterMinutes frozen at session creation, so a later settings
   /// change does not rewrite how already-elapsed silence is judged.
   idleCutoffMinutes Int @default(30)
-  /// userId while this session is open, null once closed. Unique, so Postgres
-  /// enforces at most one open session per person — the Prisma 6 equivalent of
-  /// UNIQUE (userId) WHERE endedAt IS NULL (partial unique indexes are not in
-  /// the schema language until Prisma 7.4).
-  openUserId String? @unique
+  /// userId while this session is open, null once closed. Uniqueness is not
+  /// declared here — Prisma db push treats a new unique constraint as data
+  /// loss and would fail the Vercel build. `ensureOpenSessionIndex` creates
+  /// UNIQUE (openUserId) and UNIQUE (userId) WHERE endedAt IS NULL at boot.
+  openUserId String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

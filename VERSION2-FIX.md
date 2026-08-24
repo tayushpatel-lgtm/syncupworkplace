@@ -9,7 +9,7 @@ npx prisma generate
 npx prisma db push
 ```
 
-Prisma 6 will warn that a unique constraint is being added on `WorkSession.openUserId`. That column is new and nullable; existing rows are `NULL`, which Postgres unique allows in parallel. The partial unique index `WorkSession_userId_open_key` (`userId WHERE endedAt IS NULL`) is created on first settings read as well.
+Prisma 6 will not declare unique on `WorkSession.openUserId` in `schema.prisma` — `db push` treats a new unique constraint as data loss and fails a non-interactive Vercel build. Existing rows are `NULL`, which Postgres unique allows in parallel. Both unique indexes (`WorkSession_openUserId_key` and the partial `WorkSession_userId_open_key` on `userId WHERE endedAt IS NULL`) are created on first settings read.
 
 **Date rule (applies to every item below):** a “day” is the **company-local calendar day** in `APP_TIMEZONE` (default `Asia/Kolkata`). It is not UTC’s date, and not each person’s laptop timezone. `WorkSession.date`, `todayKey`, `startOfDay`, `endOfDay`, and the midnight split all use that rule.
 
