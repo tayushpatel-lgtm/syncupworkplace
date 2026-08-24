@@ -871,8 +871,8 @@ export default function SettingsForm({
         <label className="field-label">CHECK-IN NUDGE</label>
         <p className="hint" style={{ marginTop: 0 }}>
           {cronConfigured
-            ? 'Scheduled every 5 minutes. Each person is messaged 15 minutes before their own check-in time, once per working day.'
-            : "CRON_SECRET isn't set, so the scheduled run is closed off. You can still fire one by hand below — it only sends if someone is currently in that 15-minute window."}
+            ? 'Scheduled every 5 minutes between 08:30 and 10:30 company time. Each person is messaged 15 minutes before their own check-in time, once per working day.'
+            : "CRON_SECRET isn't set, so the scheduled run is closed off. You can still fire one by hand below — it only sends between 08:30 and 10:30, and only if someone is currently in that 15-minute window."}
         </p>
         <button
           className="btn"

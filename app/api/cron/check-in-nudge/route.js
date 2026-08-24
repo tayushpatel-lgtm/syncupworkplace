@@ -5,7 +5,8 @@ import { safeEqual } from '../../../../lib/tokens';
 /**
  * 15 minutes before each person's own check-in time, DM them to open Syncup.
  * 09:30 people fire at 09:15; 10:00 people fire at 09:45. Scheduled every
- * five minutes; each person is stamped so the window cannot double-send.
+ * five minutes between 08:30 and 10:30 company time (03:00–05:55 UTC for
+ * Asia/Kolkata); the handler no-ops outside that window.
  */
 export async function GET(request) {
   const secret = process.env.CRON_SECRET;

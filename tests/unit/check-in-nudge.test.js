@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { shouldNudgePerson } from '../../lib/check-in-nudge.js';
-import { checkInNudgeClock, isInCheckInNudgeWindow, clockFromMinutes } from '../../lib/dates.js';
+import {
+  checkInNudgeClock,
+  isInCheckInNudgeWindow,
+  isCheckInNudgeRunOpen,
+  clockFromMinutes,
+} from '../../lib/dates.js';
 
 describe('check-in nudge window', () => {
   it('fires 15 minutes before a 09:30 start — at 09:15, not 09:30', () => {
@@ -48,5 +53,16 @@ describe('shouldNudgePerson', () => {
   it('does not send a 09:30 person at 09:45 (that slot is for 10:00 people)', () => {
     expect(shouldNudgePerson({ ...due, nowHhmm: '09:45' })).toBe(false);
     expect(shouldNudgePerson({ ...due, nowHhmm: '09:45', deadlineHhmm: '10:00' })).toBe(true);
+  });
+});
+
+describe('check-in nudge run hours', () => {
+  it('only allows the cron pass between 08:30 and 10:30 company time', () => {
+    expect(isCheckInNudgeRunOpen('08:29')).toBe(false);
+    expect(isCheckInNudgeRunOpen('08:30')).toBe(true);
+    expect(isCheckInNudgeRunOpen('09:15')).toBe(true);
+    expect(isCheckInNudgeRunOpen('10:30')).toBe(true);
+    expect(isCheckInNudgeRunOpen('10:31')).toBe(false);
+    expect(isCheckInNudgeRunOpen('23:00')).toBe(false);
   });
 });

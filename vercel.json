@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/check-in-nudge",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/5 3-5 * * *"
     }
   ]
 }
