@@ -1,0 +1,65 @@
+# Frequent jobs Vercel Hobby cannot run (it only allows once-a-day crons).
+# Daily jobs stay in vercel.json.
+#
+# Repo secrets:
+#   APP_URL      production origin, no trailing slash (https://your-app.vercel.app)
+#   CRON_SECRET  same value as Vercel CRON_SECRET
+#
+# Schedules only fire on the default branch.
+
+name: Frequent crons
+
+on:
+  schedule:
+    # Idle / forgotten-break close — every 20 minutes, all day (UTC)
+    - cron: '*/20 * * * *'
+    # Check-in nudge — every 5 minutes 03:00–05:59 UTC (08:30–11:29 IST)
+    - cron: '*/5 3-5 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which endpoint to hit
+        type: choice
+        options:
+          - reconcile-idle
+          - check-in-nudge
+          - both
+        default: both
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile idle sessions
+        if: >-
+          (github.event_name == 'schedule' && github.event.schedule == '*/20 * * * *')
+          || (github.event_name == 'workflow_dispatch' && (inputs.job == 'reconcile-idle' || inputs.job == 'both'))
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "Set repository secrets APP_URL and CRON_SECRET."
+            exit 1
+          fi
+          curl -fsS --retry 2 --retry-delay 5 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "${APP_URL%/}/api/cron/reconcile-idle"
+
+      - name: Check-in nudge
+        if: >-
+          (github.event_name == 'schedule' && github.event.schedule == '*/5 3-5 * * *')
+          || (github.event_name == 'workflow_dispatch' && (inputs.job == 'check-in-nudge' || inputs.job == 'both'))
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "Set repository secrets APP_URL and CRON_SECRET."
+            exit 1
+          fi
+          curl -fsS --retry 2 --retry-delay 5 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "${APP_URL%/}/api/cron/check-in-nudge"

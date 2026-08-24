@@ -179,7 +179,7 @@ Prisma 6 will warn that a unique constraint is being added on `WorkSession.openU
 | Company-local day helpers + `closedMinutes` | `lib/dates.js` |
 | Frozen idle cut-off, unique open session | `prisma/schema.prisma` (`WorkSession`) |
 | Partial unique index at boot | `lib/settings.js` → `ensureOpenSessionIndex` |
-| Backstop cron | `app/api/cron/reconcile-idle/route.js`, `vercel.json` (`*/20 * * * *`) |
+| Backstop cron | `app/api/cron/reconcile-idle/route.js`, `.github/workflows/cron.yml` (`*/20 * * * *`) |
 | Admin session APIs | `app/api/admin/sessions/` |
 | Stale-break DM | `lib/slack.js` → `staleBreakDm` |
 | Insights NaN guard | `lib/insights.js` → `closedMinutes` |

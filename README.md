@@ -265,7 +265,10 @@ Deadline reminders run once a day: due tomorrow, due today, then once a day
 while a task stays late. The scheduled runs are at `/api/cron/reminders` and
 `/api/cron/eod-summary`, both requiring `CRON_SECRET` as a bearer token —
 without it either path returns 503 and stays closed. `vercel.json` already
-schedules both. Admins can fire either by hand from Settings regardless.
+schedules both (once a day — Hobby's limit). Idle reconcile and the check-in
+nudge run more often, so they are scheduled from `.github/workflows/cron.yml`
+instead; set repo secrets `APP_URL` and `CRON_SECRET`. Admins can fire any
+of them by hand from Settings regardless.
 
 ## Google Sheets backup
 
@@ -374,6 +377,12 @@ container on every push.
 Vercel plus a hosted Postgres. Set `DATABASE_URL`, `SESSION_SECRET`,
 `APP_TIMEZONE` and `CRON_SECRET`. That's the whole setup — there is no
 separate "run the migration" step to remember.
+
+Vercel Hobby only allows daily cron, so `vercel.json` keeps the once-a-day
+jobs (reminders, end-of-day summary, Sheets sync, leave accrual). Idle
+reconcile (every 20 minutes) and the check-in nudge (every 5 minutes,
+08:30–10:30 IST) are GitHub Actions — add repository secrets `APP_URL`
+(your production origin) and `CRON_SECRET` (same value as on Vercel).
 
 The build is `prisma db push && prisma generate && next build`, so **every
 deploy brings the database up to match the schema before the new code goes
