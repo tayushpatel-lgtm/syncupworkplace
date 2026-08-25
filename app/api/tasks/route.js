@@ -3,6 +3,7 @@ import { apiUser } from '../../../lib/auth';
 import { getSettings } from '../../../lib/settings';
 import { openTaskCount, buildPlan } from '../../../lib/day';
 import { dayKey } from '../../../lib/dates';
+import { parseRepeatInput } from '../../../lib/recurrence';
 import { postToSlack, taskAssignedMessage, sendDirectMessage, taskAssignedDm } from '../../../lib/slack';
 
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
@@ -34,16 +35,36 @@ export async function POST(request) {
     );
   }
 
+  const recurrence = parseRepeatInput(body, { todayKey: dayKey() });
+  if (
+    recurrence.repeat !== 'NONE' &&
+    recurrence.repeatUntil &&
+    recurrence.dueDate &&
+    recurrence.repeatUntil.getTime() < recurrence.dueDate.getTime()
+  ) {
+    return Response.json({ error: 'The end date has to be on or after the first deadline.' }, { status: 400 });
+  }
+
   const task = await prisma.task.create({
     data: {
       title,
       detail: String(body.detail || '').trim() || null,
       priority,
-      dueDate: body.dueDate ? new Date(`${body.dueDate}T00:00:00.000Z`) : null,
+      dueDate: recurrence.dueDate,
+      repeat: recurrence.repeat,
+      repeatUntil: recurrence.repeatUntil,
+      repeatWeekdays: recurrence.repeatWeekdays,
+      repeatInterval: recurrence.repeatInterval,
+      repeatCount: recurrence.repeatCount,
       assigneeId,
       creatorId: user.id,
     },
   });
+
+  if (recurrence.repeat !== 'NONE') {
+    await prisma.task.update({ where: { id: task.id }, data: { seriesId: task.id } });
+    task.seriesId = task.id;
+  }
 
   // It should show up on their plan today, not only tomorrow.
   await buildPlan(assignee, dayKey(), settings);

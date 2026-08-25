@@ -4,6 +4,8 @@ import { useRef, useState } from 'react';
 import { useRouter } from '../../../lib/useRouter';
 import { Icon } from '../../../components/Icons';
 import { PageHead, Card, Empty, PriorityChip } from '../../../components/ui';
+import RepeatFields from '../../../components/RepeatFields';
+import { repeatLabel } from '../../../lib/recurrence';
 
 const STAGES = [
   ['PENDING', 'Pending'],
@@ -40,6 +42,11 @@ export default function TaskDetail({ task, attachments, canDelete }) {
     detail: task.detail || '',
     priority: task.priority,
     dueDate: task.dueDate,
+    repeat: task.repeat || 'NONE',
+    repeatUntil: task.repeatUntil || '',
+    repeatWeekdays: task.repeatWeekdays || [],
+    repeatInterval: task.repeatInterval || 1,
+    repeatCount: task.repeatCount || '',
   });
 
   async function patch(body, tag) {
@@ -156,6 +163,8 @@ export default function TaskDetail({ task, attachments, canDelete }) {
             <div className="row wrap" style={{ gap: 10 }}>
               <PriorityChip priority={task.priority} />
               <span className="chip">{task.dueDate ? `due ${task.dueDate}` : 'no deadline'}</span>
+              {repeatLabel(task) && <span className="chip">{repeatLabel(task)}</span>}
+              {task.repeatUntil && <span className="chip">until {task.repeatUntil}</span>}
             </div>
             <p style={{ margin: 0, lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
               {task.detail || <span className="muted">No detail added.</span>}
@@ -194,6 +203,7 @@ export default function TaskDetail({ task, attachments, canDelete }) {
                 />
               </div>
             </div>
+            <RepeatFields form={form} setForm={setForm} />
             <div>
               <label className="field-label">DETAIL</label>
               <textarea

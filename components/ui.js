@@ -98,12 +98,15 @@ export function Empty({ children }) {
   return <p className="empty">{children}</p>;
 }
 
-export function Modal({ open, onClose, title, description, children, wide = false }) {
+export function Modal({ open, onClose, title, description, children, wide = false, fill = false, closeOnOverlay = true }) {
   if (!open) return null;
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      onClick={closeOnOverlay ? onClose : undefined}
+    >
       <div
-        className={`modal-panel ${wide ? 'wide' : ''}`}
+        className={`modal-panel ${wide ? 'wide' : ''} ${fill ? 'modal-panel-fill' : ''}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
 import { useRouter } from '../lib/useRouter';
 import { Icon } from '../components/Icons';
-import { PageHead, Card, Empty, Modal } from '../components/ui';
+import LiveClock from '../components/LiveClock';
+import { Card, Empty, Modal } from '../components/ui';
 import { setUnloadGuardArmed } from '../components/UnloadGuard';
 
 function KeepTabOpenNotice() {
@@ -18,6 +19,37 @@ function KeepTabOpenNotice() {
         <kbd>⌘</kbd>+<kbd>T</kbd> / <kbd>⌘</kbd>+<kbd>N</kbd> on Mac.
       </p>
     </div>
+  );
+}
+
+function DayHead({ dayLabel, timezone, compact = false, children }) {
+  const when = (
+    <>
+      <span>{dayLabel}</span>
+      <span className="day-when-rule" aria-hidden>
+        |
+      </span>
+      <LiveClock timezone={timezone} />
+    </>
+  );
+
+  if (compact) {
+    return (
+      <header className="page-head page-head-compact">
+        <h1 className="day-when">{when}</h1>
+        {children && <div className="spacer row">{children}</div>}
+      </header>
+    );
+  }
+
+  return (
+    <header className="page-head">
+      <div>
+        <h1>My day</h1>
+        <p className="day-when">{when}</p>
+      </div>
+      {children && <div className="spacer row">{children}</div>}
+    </header>
   );
 }
 
@@ -160,13 +192,49 @@ function CheckOutPopup({ items, setItems, notes, setNotes, reportRequired, busy,
   );
 }
 
+function formatLateBy(minutes) {
+  const mins = Math.max(0, Math.floor(minutes || 0));
+  if (!mins) return null;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h && m) return `late by ${h} hr ${m} min${m === 1 ? '' : 's'}`;
+  if (h) return `late by ${h} hr`;
+  return `late by ${m} min${m === 1 ? '' : 's'}`;
+}
+
+function openTasksCopy(priorities) {
+  const high = priorities?.HIGH || 0;
+  const medium = priorities?.MEDIUM || 0;
+  const low = priorities?.LOW || 0;
+  const total = high + medium + low;
+  if (!total) return null;
+  const bits = [];
+  if (high) bits.push(<>{high} <b>high</b></>);
+  if (medium) bits.push(<>{medium} <b>medium</b></>);
+  if (low) bits.push(<>{low} <b>low</b></>);
+  const including = bits.map((bit, i) => (
+    <span key={i}>
+      {i > 0 && (i === bits.length - 1 ? ' and ' : ', ')}
+      {bit}
+    </span>
+  ));
+  const noun = total === 1 ? 'open task waiting' : 'open tasks waiting';
+  return (
+    <>
+      {total} {noun} including {including} priority
+    </>
+  );
+}
+
 export default function MyDay(props) {
   const {
     user,
     dayLabel,
+    timezone,
     workingDay,
     holidayName,
     deadlineLabel,
+    lateByMinutes,
     reportRequired,
     checkedIn,
     checkedOut,
@@ -175,7 +243,7 @@ export default function MyDay(props) {
     totals,
     running,
     report,
-    openTasks,
+    openTaskPriorities,
   } = props;
 
   const router = useRouter();
@@ -225,6 +293,8 @@ export default function MyDay(props) {
   const breakSeconds =
     (totals.break + (running?.kind === 'BREAK' ? totals.liveBreak || 0 : 0)) * 60 +
     (running?.kind === 'BREAK' ? elapsed : 0);
+  const waitingCopy = openTasksCopy(openTaskPriorities);
+  const lateByCopy = formatLateBy(lateByMinutes);
 
   const donePoints = plan.filter((p) => p.done).length;
   const progress = plan.length ? Math.round((donePoints / plan.length) * 100) : 0;
@@ -380,8 +450,7 @@ export default function MyDay(props) {
   if (!workingDay && !checkedIn) {
     return (
       <>
-        <PageHead title="My day" subtitle={dayLabel} />
-        <KeepTabOpenNotice />
+        <DayHead compact dayLabel={dayLabel} timezone={timezone} />
         <Card glyph="sun" title={holidayName || 'Not a working day'}>
           <p className="hint" style={{ marginTop: 0 }}>
             {holidayName
@@ -406,24 +475,29 @@ export default function MyDay(props) {
   if (!checkedIn) {
     return (
       <>
-        <PageHead title="My day" subtitle={dayLabel} />
-        <KeepTabOpenNotice />
-        <Card glyph="bolt" title={`Good to see you, ${user.name.split(' ')[0]}.`}>
-          <p className="hint" style={{ marginTop: 0 }}>
-            Check in to start the day. You&apos;ll tick off what&apos;s already on your plate — and
-            add anything else — before it starts.
-          </p>
+        <DayHead compact dayLabel={dayLabel} timezone={timezone} />
+        <Card
+          className="check-in-card"
+          title={`Good to see you, ${user.name.split(' ')[0]}.`}
+          description="Check in to start the day. You'll tick off what's already on your plate."
+        >
+          {waitingCopy && (
+            <div className="open-tasks-box">
+              <Icon.list width={16} height={16} aria-hidden />
+              <p>{waitingCopy}</p>
+            </div>
+          )}
           <div className="row" style={{ marginTop: 24 }}>
             <button className="btn btn-primary" onClick={startCheckIn} disabled={busy === 'in'}>
               {busy === 'in' ? <Icon.spinner width={15} height={15} /> : <Icon.play width={15} height={15} />}
               {busy === 'in' ? 'Checking in…' : 'Check in'}
             </button>
-            <span className="muted" style={{ fontSize: 13.5 }}>
-              Expected by {deadlineLabel}
-              {openTasks > 0 && ` · ${openTasks} open task${openTasks === 1 ? '' : 's'} waiting`}
-            </span>
           </div>
           {error && <p className="error-line">{error}</p>}
+          <p className="check-in-foot">
+            Expected by {deadlineLabel}
+            {lateByCopy && <span className="late"> {lateByCopy}</span>}
+          </p>
         </Card>
         {checkInPopup}
       </>
@@ -437,9 +511,9 @@ export default function MyDay(props) {
   if (!checkedOut && plan.length === 0) {
     return (
       <>
-        <PageHead title="My day" subtitle={dayLabel}>
+        <DayHead dayLabel={dayLabel} timezone={timezone}>
           {late && <span className="chip amber">late arrival</span>}
-        </PageHead>
+        </DayHead>
         <KeepTabOpenNotice />
         <Card
           glyph="clipboard"
@@ -470,10 +544,10 @@ export default function MyDay(props) {
 
   return (
     <>
-      <PageHead title="My day" subtitle={dayLabel}>
+      <DayHead dayLabel={dayLabel} timezone={timezone}>
         {late && <span className="chip amber">late arrival</span>}
         {checkedOut && <span className="chip green">day closed</span>}
-      </PageHead>
+      </DayHead>
       <KeepTabOpenNotice />
 
       <Card>

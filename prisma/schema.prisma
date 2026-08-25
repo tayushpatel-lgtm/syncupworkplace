@@ -32,6 +32,16 @@ enum Priority {
   HIGH
 }
 
+/// How often a task comes back after it's completed. NONE is a one-off.
+enum TaskRepeat {
+  NONE
+  DAILY
+  WEEKDAYS
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
 enum AttendanceStatus {
   PRESENT
   LEAVE
@@ -328,6 +338,18 @@ model Task {
   status      TaskStatus @default(PENDING)
   priority    Priority   @default(MEDIUM)
   dueDate     DateTime?  @db.Date
+  /// NONE means a one-off. Anything else spawns the next occurrence on complete.
+  repeat      TaskRepeat @default(NONE)
+  /// Last day an occurrence may be due. Null means the series does not end.
+  repeatUntil DateTime?  @db.Date
+  /// ISO weekdays 1 (Mon) .. 7 (Sun). Used when repeat = WEEKLY.
+  repeatWeekdays Int[]   @default([])
+  /// Every N days/weeks/months/years. 1 is the usual "every day / every week".
+  repeatInterval Int     @default(1)
+  /// Stop after this many occurrences, counting the first. Null means no count cap.
+  repeatCount    Int?
+  /// Shared across every occurrence of a repeating task. The first row uses its own id.
+  seriesId    String?
   assigneeId  String
   creatorId   String
   completedAt DateTime?

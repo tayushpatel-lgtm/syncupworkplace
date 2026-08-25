@@ -371,6 +371,39 @@ a {
   margin-left: auto;
 }
 
+.live-clock {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  min-width: 8ch;
+}
+
+.day-when {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.day-when-rule {
+  color: var(--faint);
+  font-weight: 400;
+  font-family: var(--sans);
+}
+
+.page-head-compact {
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.page-head-compact h1 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
 /* ---------------------------------------------------------------- Cards */
 
 .card {
@@ -419,6 +452,46 @@ a {
 
 .card-head .spacer {
   margin-left: auto;
+}
+
+.check-in-card {
+  padding: 28px 30px 0;
+  overflow: hidden;
+}
+
+.open-tasks-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fafafa;
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.open-tasks-box svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--ink-muted);
+}
+
+.open-tasks-box b {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.check-in-foot {
+  margin: 24px -30px 0;
+  padding: 20px 30px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-size: 13.5px;
+}
+
+.check-in-foot .late {
+  color: var(--amber);
 }
 
 .grid-2 {
@@ -788,6 +861,7 @@ a {
 /* Segmented range control. */
 .segmented {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
@@ -1509,6 +1583,51 @@ a {
 
 .modal-panel.wide {
   max-width: 860px;
+}
+
+.modal-panel-fill {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  max-height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+.modal-panel-fill .modal-head {
+  flex-shrink: 0;
+}
+
+.modal-panel-fill form,
+.modal-panel-fill [data-slot='field-group'] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.modal-panel-fill .assign-detail-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll-hidden {
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.modal-panel-fill .assign-detail-wrap textarea {
+  position: relative;
+  display: block;
+  width: 100%;
+  resize: none;
+  overflow-y: hidden;
+  field-sizing: fixed;
 }
 
 .modal-head {

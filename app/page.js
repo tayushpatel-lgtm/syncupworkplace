@@ -2,7 +2,7 @@ import { requireUser } from '../lib/auth';
 import { prisma } from '../lib/db';
 import { getSettings, checkInDeadline, holidayKeySet } from '../lib/settings';
 import { reconcileSessions, dayTotals, getAttendance, getPlan, buildPlan } from '../lib/day';
-import { dayKey, dayDate, formatDayLabel, isWorkingDay, formatClock } from '../lib/dates';
+import { dayKey, dayDate, formatDayLabel, isWorkingDay, formatClock, TZ, timeKey, minutesOfDay } from '../lib/dates';
 import Shell from '../components/Shell';
 import MyDay from './MyDay';
 
@@ -22,12 +22,20 @@ export default async function MyDayPage() {
   if (attendance?.checkInAt) await buildPlan(user, key, settings);
 
   const holidays = await holidayKeySet(key, key);
-  const [plan, totals, report, openTasks] = await Promise.all([
+  const deadline = checkInDeadline(user, settings);
+  const [plan, totals, report, openTaskGroups] = await Promise.all([
     getPlan(user.id, key),
     dayTotals(user.id, key),
     prisma.dailyReport.findUnique({ where: { userId_date: { userId: user.id, date: dayDate(key) } } }),
-    prisma.task.count({ where: { assigneeId: user.id, status: { in: ['PENDING', 'PROGRESS'] } } }),
+    prisma.task.groupBy({
+      by: ['priority'],
+      where: { assigneeId: user.id, status: { in: ['PENDING', 'PROGRESS'] } },
+      _count: { _all: true },
+    }),
   ]);
+
+  const openTaskPriorities = { HIGH: 0, MEDIUM: 0, LOW: 0 };
+  for (const row of openTaskGroups) openTaskPriorities[row.priority] = row._count._all;
 
   return (
     <Shell user={user}>
@@ -35,10 +43,12 @@ export default async function MyDayPage() {
         user={user}
         dayKey={key}
         dayLabel={formatDayLabel(key, { weekday: 'long', year: 'numeric' })}
+        timezone={TZ}
         workingDay={isWorkingDay(key, settings.workingDays, new Set(holidays.keys()))}
         holidayName={holidays.get(key) || null}
-        deadline={checkInDeadline(user, settings)}
-        deadlineLabel={formatClock(checkInDeadline(user, settings))}
+        deadline={deadline}
+        deadlineLabel={formatClock(deadline)}
+        lateByMinutes={Math.max(0, minutesOfDay(timeKey()) - minutesOfDay(deadline))}
         reportRequired={settings.reportRequired}
         checkedIn={!!attendance?.checkInAt}
         checkedOut={!!attendance?.checkOutAt}
@@ -59,7 +69,7 @@ export default async function MyDayPage() {
             : null
         }
         report={report ? { summary: report.summary, submittedAt: report.submittedAt.toISOString() } : null}
-        openTasks={openTasks}
+        openTaskPriorities={openTaskPriorities}
       />
     </Shell>
   );

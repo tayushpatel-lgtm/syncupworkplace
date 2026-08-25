@@ -5,6 +5,7 @@ import { useRouter } from '../lib/useRouter';
 import Link from 'next/link';
 import { Icon } from './Icons';
 import { Avatar, Empty } from './ui';
+import { repeatLabel } from '../lib/recurrence';
 
 const LANES = [
   ['PENDING', 'Pending'],
@@ -55,6 +56,7 @@ function TaskCard({ task, today, onDragStart, dragging, showAssignee, onDelete, 
           <span className={`chip ${dueTone(task.dueDate, today, task.status)}`}>
             {dueLabel(task.dueDate, today)}
           </span>
+          {repeatLabel(task) && <span className="chip">{repeatLabel(task)}</span>}
           <span className="chip">{task.priority.toLowerCase()}</span>
           {task.attachmentCount > 0 && (
             <span className="chip">

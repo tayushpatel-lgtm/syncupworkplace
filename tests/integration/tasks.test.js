@@ -181,6 +181,98 @@ describe('tasks', () => {
     });
   });
 
+  describe('repeating tasks', () => {
+    it('completing a daily task opens the next day as a new occurrence', async () => {
+      const person = await createPerson(ceoCookie);
+      const created = await api('/api/tasks', {
+        method: 'POST',
+        cookie: ceoCookie,
+        body: {
+          title: 'Daily standup notes',
+          assigneeId: person.id,
+          dueDate: '2026-08-24',
+          repeat: 'DAILY',
+        },
+      });
+      expect(created.status).toBe(200);
+
+      await api(`/api/tasks/${created.json.id}`, {
+        method: 'PATCH',
+        cookie: ceoCookie,
+        body: { status: 'COMPLETED' },
+      });
+
+      const original = await testDb.task.findUnique({ where: { id: created.json.id } });
+      expect(original.status).toBe('COMPLETED');
+      expect(original.seriesId).toBe(created.json.id);
+
+      const next = await testDb.task.findFirst({
+        where: { title: 'Daily standup notes', status: 'PENDING' },
+      });
+      expect(next).not.toBeNull();
+      expect(next.dueDate.toISOString().slice(0, 10)).toBe('2026-08-25');
+      expect(next.repeat).toBe('DAILY');
+      expect(next.seriesId).toBe(created.json.id);
+      expect(next.assigneeId).toBe(person.id);
+    });
+
+    it('does not spawn past the end date', async () => {
+      const person = await createPerson(ceoCookie);
+      const created = await api('/api/tasks', {
+        method: 'POST',
+        cookie: ceoCookie,
+        body: {
+          title: 'Last daily',
+          assigneeId: person.id,
+          dueDate: '2026-08-24',
+          repeat: 'DAILY',
+          repeatUntil: '2026-08-24',
+        },
+      });
+      await api(`/api/tasks/${created.json.id}`, {
+        method: 'PATCH',
+        cookie: ceoCookie,
+        body: { status: 'COMPLETED' },
+      });
+
+      const count = await testDb.task.count({ where: { title: 'Last daily' } });
+      expect(count).toBe(1);
+    });
+
+    it('keeps a repeating task off today\'s plan until it is due', async () => {
+      const person = await createPerson(ceoCookie);
+      const created = await api('/api/tasks', {
+        method: 'POST',
+        cookie: ceoCookie,
+        body: {
+          title: 'Future daily',
+          assigneeId: person.id,
+          dueDate: '2026-12-01',
+          repeat: 'DAILY',
+        },
+      });
+      await api('/api/day/check-in', { method: 'POST', cookie: person.cookie });
+      const point = await testDb.planPoint.findFirst({ where: { taskId: created.json.id } });
+      expect(point).toBeNull();
+    });
+
+    it('still puts a one-off with a later deadline on today\'s plan', async () => {
+      const person = await createPerson(ceoCookie);
+      const created = await api('/api/tasks', {
+        method: 'POST',
+        cookie: ceoCookie,
+        body: {
+          title: 'One-off later',
+          assigneeId: person.id,
+          dueDate: '2026-12-01',
+        },
+      });
+      await api('/api/day/check-in', { method: 'POST', cookie: person.cookie });
+      const point = await testDb.planPoint.findFirst({ where: { taskId: created.json.id } });
+      expect(point).not.toBeNull();
+    });
+  });
+
   // Wipes every task in the database — must stay the last describe block in
   // this file (fileParallelism is off, so files run one at a time, but tests
   // within a file share the same database and this one leaves it empty).
