@@ -202,7 +202,10 @@ describe('the working day', () => {
     const today = dayKey();
     const yesterday = shiftDay(today, -1);
     const startedAt = zonedTimeToUtc(yesterday, '18:00');
-    const beat = zonedTimeToUtc(today, '09:00');
+    // Must be on today and older than the 2-minute idle cut-off. A fixed
+    // 09:00 stamp is still in the future when CI runs before 09:00 IST.
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const beat = dayKey(tenMinAgo) === today ? tenMinAgo : zonedTimeToUtc(today, '00:01');
 
     await testDb.workSession.updateMany({
       where: { userId: person.id, endedAt: null },
