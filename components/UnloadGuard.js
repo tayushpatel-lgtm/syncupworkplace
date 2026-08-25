@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { CLOCK_STAY_EVENT } from '../lib/clockTick';
 
 let bypass = false;
 let armed = false;
@@ -39,9 +40,11 @@ export default function UnloadGuard({ running = false }) {
     const onBeforeUnload = (event) => {
       if (bypass || !armed) return undefined;
       event.preventDefault();
-      // Must be a non-empty string. An empty string is ignored by some
-      // browsers, which is why an earlier handler never produced a dialog.
       event.returnValue = 'Leave site?';
+      const stay = () => window.dispatchEvent(new Event(CLOCK_STAY_EVENT));
+      window.addEventListener('focus', stay, { once: true, capture: true });
+      window.addEventListener('mousemove', stay, { once: true, capture: true });
+      document.addEventListener('visibilitychange', stay, { once: true });
       return 'Leave site?';
     };
 

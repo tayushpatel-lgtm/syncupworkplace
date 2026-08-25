@@ -7,6 +7,7 @@ import { Icon } from '../components/Icons';
 import LiveClock from '../components/LiveClock';
 import { Card, Empty, Modal } from '../components/ui';
 import { setUnloadGuardArmed } from '../components/UnloadGuard';
+import { CLOCK_STAY_EVENT, subscribeClockTick } from '../lib/clockTick';
 
 function KeepTabOpenNotice() {
   return (
@@ -269,22 +270,32 @@ export default function MyDay(props) {
   useEffect(() => {
     if (!running) return undefined;
     const from = Date.now();
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - from) / 1000)), 1000);
-    return () => clearInterval(id);
+    return subscribeClockTick((now) => setElapsed(Math.floor((now - from) / 1000)));
   }, [running?.kind, running?.startedAt]);
 
   // The heartbeat. Fires regardless of tab visibility — switching tabs or
   // windows must never look like idle time. Only the machine itself going to
   // sleep or shutting down actually stops a JS timer from firing, which is
   // the one thing that should turn a running timer into discarded idle time.
+  // Chrome also kills setInterval after the close-tab dialog is cancelled, so
+  // we start a fresh timer when the person stays.
   useEffect(() => {
     if (!running) return undefined;
+    let id;
     const beat = () => {
       fetch('/api/day/heartbeat', { method: 'POST', keepalive: true }).catch(() => {});
     };
-    beat();
-    const id = setInterval(beat, HEARTBEAT_MS);
-    return () => clearInterval(id);
+    const start = () => {
+      clearInterval(id);
+      beat();
+      id = setInterval(beat, HEARTBEAT_MS);
+    };
+    start();
+    window.addEventListener(CLOCK_STAY_EVENT, start);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener(CLOCK_STAY_EVENT, start);
+    };
   }, [running?.kind, running?.startedAt]);
 
   const workSeconds =

@@ -1,23 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatWallClock, subscribeClockTick } from '../lib/clockTick';
 
 export default function LiveClock({ timezone = 'Asia/Kolkata' }) {
   const [time, setTime] = useState('');
 
   useEffect(() => {
-    if (typeof Worker === 'undefined') return undefined;
-
-    const worker = new Worker('/clock.worker.js');
-    const onMessage = (event) => setTime(event.data);
-    worker.addEventListener('message', onMessage);
-    worker.postMessage({ type: 'start', timezone });
-
-    return () => {
-      worker.removeEventListener('message', onMessage);
-      worker.postMessage({ type: 'stop' });
-      worker.terminate();
-    };
+    return subscribeClockTick((now) => setTime(formatWallClock(now, timezone)));
   }, [timezone]);
 
   return (
