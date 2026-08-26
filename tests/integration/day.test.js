@@ -232,6 +232,96 @@ describe('the working day', () => {
     expect(work[1].endedAt.getTime()).toBe(beat.getTime());
   });
 
+  it('keeps a live timer running past midnight instead of stopping it', async () => {
+    const person = await createPerson(ceoCookie);
+    await api('/api/day/check-in', { method: 'POST', cookie: person.cookie });
+    await api('/api/day/plan', { method: 'POST', cookie: person.cookie, body: { action: 'add', title: 'Night work' } });
+
+    const today = dayKey();
+    const yesterday = shiftDay(today, -1);
+    // Two hours before midnight — yesterday for sure, and under the 12-hour cap
+    // until 10:00 the next morning. After that the cap (not midnight) should stop it.
+    const startedAt = new Date(endOfDay(yesterday).getTime() - 2 * 60 * 60 * 1000);
+
+    await testDb.workSession.updateMany({
+      where: { userId: person.id, endedAt: null },
+      data: {
+        date: dayDate(yesterday),
+        startedAt,
+        lastBeatAt: new Date(),
+        idleCutoffMinutes: 120,
+      },
+    });
+    await testDb.attendance.updateMany({
+      where: { userId: person.id },
+      data: { date: dayDate(yesterday), checkInAt: startedAt },
+    });
+
+    const res = await api('/api/day/heartbeat', { method: 'POST', cookie: person.cookie });
+    expect(res.status).toBe(200);
+
+    const work = await testDb.workSession.findMany({
+      where: { userId: person.id, kind: 'WORK' },
+      orderBy: { startedAt: 'asc' },
+    });
+    expect(work.length).toBeGreaterThanOrEqual(2);
+    expect(dateFieldKey(work[0].date)).toBe(yesterday);
+    expect(work[0].endedAt.getTime()).toBe(endOfDay(yesterday).getTime());
+    expect(dateFieldKey(work[1].date)).toBe(today);
+    expect(work[1].startedAt.getTime()).toBe(startOfDay(today).getTime());
+
+    const underCap = Date.now() - startedAt.getTime() < 12 * 60 * 60 * 1000;
+    if (underCap) {
+      expect(res.json.running).toBe(true);
+      expect(work[1].endedAt).toBeNull();
+
+      const todayAttendance = await testDb.attendance.findFirst({
+        where: { userId: person.id, date: dayDate(today) },
+      });
+      expect(todayAttendance?.checkInAt).not.toBeNull();
+
+      const home = await page('/', { cookie: person.cookie });
+      expect(home.text).toContain('RECORDED WORK');
+      expect(home.text).not.toContain('Good to see you');
+    } else {
+      expect(res.json.running).toBe(false);
+      const capEnd = startedAt.getTime() + 12 * 60 * 60 * 1000;
+      expect(Math.abs(work[1].endedAt.getTime() - capEnd)).toBeLessThan(2000);
+    }
+  });
+
+  it('stops a live timer once recorded work crosses 12 hours', async () => {
+    const person = await createPerson(ceoCookie);
+    await api('/api/day/check-in', { method: 'POST', cookie: person.cookie });
+
+    const startedAt = new Date(Date.now() - (12 * 60 + 15) * 60 * 1000);
+    await testDb.workSession.updateMany({
+      where: { userId: person.id, endedAt: null },
+      data: {
+        date: dayDate(dayKey(startedAt)),
+        startedAt,
+        lastBeatAt: new Date(),
+        idleCutoffMinutes: 120,
+      },
+    });
+
+    const res = await api('/api/day/heartbeat', { method: 'POST', cookie: person.cookie });
+    expect(res.status).toBe(200);
+    expect(res.json.running).toBe(false);
+
+    const stillOpen = await testDb.workSession.findFirst({
+      where: { userId: person.id, endedAt: null },
+    });
+    expect(stillOpen).toBeNull();
+
+    const sessions = await testDb.workSession.findMany({
+      where: { userId: person.id, kind: 'WORK' },
+      orderBy: { startedAt: 'asc' },
+    });
+    const totalMs = sessions.reduce((sum, s) => sum + (s.endedAt.getTime() - s.startedAt.getTime()), 0);
+    expect(Math.abs(totalMs - 12 * 60 * 60 * 1000)).toBeLessThan(2000);
+  });
+
   it('excludes an open session from frozen report minutes instead of writing NaN', async () => {
     const person = await createPerson(ceoCookie);
     await api('/api/day/check-in', { method: 'POST', cookie: person.cookie });

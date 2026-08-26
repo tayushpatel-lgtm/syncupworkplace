@@ -115,6 +115,51 @@ describe('MCP write tools', () => {
     expect(task.status).toBe('COMPLETED');
   });
 
+  it('assign_task stores a repeating series and completing it via MCP opens the next occurrence', async () => {
+    const person = await createPerson(ceoCookie, { name: 'Neel Recurring' });
+    const title = `Daily standup ${Date.now()}`;
+    const { json } = await rpc(
+      'tools/call',
+      {
+        name: 'assign_task',
+        arguments: { assignee: person.email, title, repeat: 'daily', dueDate: dayKey() },
+      },
+      readWriteToken,
+    );
+    const created = JSON.parse(json.result.content[0].text);
+    expect(created.ok).toBe(true);
+    expect(created.repeat).toBe('DAILY');
+
+    const first = await testDb.task.findUnique({ where: { id: created.id } });
+    expect(first.repeat).toBe('DAILY');
+    expect(first.seriesId).toBe(first.id);
+
+    const complete = await rpc(
+      'tools/call',
+      { name: 'update_task_status', arguments: { task: title, assignee: 'Neel Recurring', status: 'done' } },
+      readWriteToken,
+    );
+    const firstDone = JSON.parse(complete.json.result.content[0].text);
+    expect(firstDone.ok).toBe(true);
+    expect(firstDone.nextOccurrence).toBeTruthy();
+    expect(firstDone.nextOccurrence.dueDate).toBe(shiftDay(dayKey(), 1));
+
+    const next = await testDb.task.findUnique({ where: { id: firstDone.nextOccurrence.id } });
+    expect(next.status).toBe('PENDING');
+    expect(next.repeat).toBe('DAILY');
+    expect(next.seriesId).toBe(first.id);
+
+    const completeAgain = await rpc(
+      'tools/call',
+      { name: 'update_task_status', arguments: { task: title, assignee: 'Neel Recurring', status: 'COMPLETED' } },
+      readWriteToken,
+    );
+    const secondDone = JSON.parse(completeAgain.json.result.content[0].text);
+    expect(secondDone.ok).toBe(true);
+    expect(secondDone.id).toBe(next.id);
+    expect(secondDone.nextOccurrence).toBeTruthy();
+  });
+
   it('update_task_status refuses an ambiguous match', async () => {
     const person = await createPerson(ceoCookie, { name: 'Amara Duplicator' });
     await api('/api/tasks', { method: 'POST', cookie: ceoCookie, body: { title: 'Duplicate title', assigneeId: person.id } });
