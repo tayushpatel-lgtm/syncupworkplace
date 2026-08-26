@@ -527,7 +527,7 @@ export default function MyDay(props) {
   // A safety net, not the normal path — the check-in popup already requires at least one
   // point. This only ever catches a day that went empty later (everything got dropped).
 
-  if (!checkedOut && plan.length === 0 && !running) {
+  if (!checkedOut && plan.length === 0 && !(totals.priorWork > 0)) {
     return (
       <>
         <DayHead dayLabel={dayLabel} timezone={timezone}>
