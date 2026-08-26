@@ -283,7 +283,12 @@ export default function MyDay(props) {
     if (!running) return undefined;
     let id;
     const beat = () => {
-      fetch('/api/day/heartbeat', { method: 'POST', keepalive: true }).catch(() => {});
+      fetch('/api/day/heartbeat', { method: 'POST', keepalive: true })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.running === false) router.refresh();
+        })
+        .catch(() => {});
     };
     const start = () => {
       clearInterval(id);
@@ -299,7 +304,10 @@ export default function MyDay(props) {
   }, [running?.kind, running?.startedAt]);
 
   const workSeconds =
-    (totals.work + (running?.kind === 'WORK' ? totals.liveWork || 0 : 0)) * 60 +
+    (totals.work +
+      (totals.priorWork || 0) +
+      (running?.kind === 'WORK' ? totals.liveWork || 0 : 0)) *
+      60 +
     (running?.kind === 'WORK' ? elapsed : 0);
   const breakSeconds =
     (totals.break + (running?.kind === 'BREAK' ? totals.liveBreak || 0 : 0)) * 60 +
@@ -519,7 +527,7 @@ export default function MyDay(props) {
   // A safety net, not the normal path — the check-in popup already requires at least one
   // point. This only ever catches a day that went empty later (everything got dropped).
 
-  if (!checkedOut && plan.length === 0) {
+  if (!checkedOut && plan.length === 0 && !running) {
     return (
       <>
         <DayHead dayLabel={dayLabel} timezone={timezone}>

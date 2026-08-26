@@ -50,7 +50,7 @@ export default async function MyDayPage() {
         deadlineLabel={formatClock(deadline)}
         lateByMinutes={Math.max(0, minutesOfDay(timeKey()) - minutesOfDay(deadline))}
         reportRequired={settings.reportRequired}
-        checkedIn={!!attendance?.checkInAt}
+        checkedIn={!!attendance?.checkInAt || !!totals.running}
         checkedOut={!!attendance?.checkOutAt}
         late={!!attendance?.late}
         checkInAt={attendance?.checkInAt ? attendance.checkInAt.toISOString() : null}
