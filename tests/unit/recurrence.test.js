@@ -91,6 +91,14 @@ describe('parseRepeatInput', () => {
     expect(parseRepeat('custom')).toBe('NONE');
   });
 
+  it('accepts everyday language for the MCP and UI aliases', () => {
+    expect(parseRepeat('daily')).toBe('DAILY');
+    expect(parseRepeat('every day')).toBe('DAILY');
+    expect(parseRepeat('weekdays')).toBe('WEEKDAYS');
+    expect(parseRepeat('every weekday')).toBe('WEEKDAYS');
+    expect(parseRepeat('weekly')).toBe('WEEKLY');
+  });
+
   it('fills in today when a repeating task has no first due date', () => {
     const parsed = parseRepeatInput({ repeat: 'DAILY' }, { todayKey: '2026-08-24' });
     expect(parsed.repeat).toBe('DAILY');
@@ -100,5 +108,11 @@ describe('parseRepeatInput', () => {
   it('picks the deadline weekday when weekly days are omitted', () => {
     const parsed = parseRepeatInput({ repeat: 'WEEKLY', dueDate: '2026-08-24' });
     expect(parsed.repeatWeekdays).toEqual([1]);
+  });
+
+  it('accepts due as an alias for dueDate', () => {
+    const parsed = parseRepeatInput({ repeat: 'daily', due: '2026-08-26' });
+    expect(parsed.repeat).toBe('DAILY');
+    expect(ymd(parsed.dueDate)).toBe('2026-08-26');
   });
 });
