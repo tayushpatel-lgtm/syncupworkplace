@@ -334,9 +334,11 @@ export default function MyDay(props) {
       setError(data.error || 'Something went wrong.');
       return false;
     }
-    setElapsed(0);
-    if (url === '/api/day/session' && body?.kind && body.kind !== 'STOP') {
-      setUnloadGuardArmed(true);
+    if (!data.skipped) {
+      setElapsed(0);
+      if (url === '/api/day/session' && body?.kind && body.kind !== 'STOP') {
+        setUnloadGuardArmed(true);
+      }
     }
     router.refresh();
     return true;
