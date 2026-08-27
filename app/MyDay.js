@@ -303,6 +303,8 @@ export default function MyDay(props) {
     };
   }, [running?.kind, running?.startedAt]);
 
+  // priorWork is only earlier-day abutting work (a midnight split). Same-day
+  // closed work is already in totals.work.
   const workSeconds =
     (totals.work +
       (totals.priorWork || 0) +
@@ -332,9 +334,11 @@ export default function MyDay(props) {
       setError(data.error || 'Something went wrong.');
       return false;
     }
-    setElapsed(0);
-    if (url === '/api/day/session' && body?.kind && body.kind !== 'STOP') {
-      setUnloadGuardArmed(true);
+    if (!data.skipped) {
+      setElapsed(0);
+      if (url === '/api/day/session' && body?.kind && body.kind !== 'STOP') {
+        setUnloadGuardArmed(true);
+      }
     }
     router.refresh();
     return true;
