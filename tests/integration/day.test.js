@@ -401,6 +401,34 @@ describe('the working day', () => {
     expect(dateFieldKey(session.date)).toBe(dayKey(session.startedAt));
   });
 
+  it('does not double recorded work when switching to a break', async () => {
+    const person = await createPerson(ceoCookie);
+    await api('/api/day/check-in', { method: 'POST', cookie: person.cookie });
+    await api('/api/day/plan', { method: 'POST', cookie: person.cookie, body: { action: 'add', title: 'Something' } });
+
+    const workedMs = (3 * 60 + 50) * 60 * 1000;
+    const startedAt = new Date(Date.now() - workedMs);
+    await testDb.workSession.updateMany({
+      where: { userId: person.id, endedAt: null, kind: 'WORK' },
+      data: { startedAt, lastBeatAt: new Date() },
+    });
+
+    const paused = await api('/api/day/session', { method: 'POST', cookie: person.cookie, body: { kind: 'BREAK' } });
+    expect(paused.status).toBe(200);
+
+    const onBreak = await page('/', { cookie: person.cookie });
+    expect(onBreak.text).toContain('On a break');
+    expect(onBreak.text).toMatch(/03:5\d:\d{2}/);
+    expect(onBreak.text).not.toMatch(/07:4\d:\d{2}/);
+
+    const resumed = await api('/api/day/session', { method: 'POST', cookie: person.cookie, body: { kind: 'WORK' } });
+    expect(resumed.status).toBe(200);
+
+    const backAtWork = await page('/', { cookie: person.cookie });
+    expect(backAtWork.text).toMatch(/03:5\d:\d{2}/);
+    expect(backAtWork.text).not.toMatch(/07:4\d:\d{2}/);
+  });
+
   it('no-ops a second session switch of the same kind within a few seconds', async () => {
     const person = await createPerson(ceoCookie);
     await api('/api/day/check-in', { method: 'POST', cookie: person.cookie });

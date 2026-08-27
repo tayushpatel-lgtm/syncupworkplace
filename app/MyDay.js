@@ -303,6 +303,8 @@ export default function MyDay(props) {
     };
   }, [running?.kind, running?.startedAt]);
 
+  // priorWork is only earlier-day abutting work (a midnight split). Same-day
+  // closed work is already in totals.work.
   const workSeconds =
     (totals.work +
       (totals.priorWork || 0) +
