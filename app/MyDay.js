@@ -7,7 +7,7 @@ import { Icon } from '../components/Icons';
 import LiveClock from '../components/LiveClock';
 import { Card, Empty, Modal } from '../components/ui';
 import { setUnloadGuardArmed } from '../components/UnloadGuard';
-import { CLOCK_STAY_EVENT, subscribeClockTick } from '../lib/clockTick';
+import { subscribeClockTick, subscribeHeartbeat } from '../lib/clockTick';
 
 function KeepTabOpenNotice() {
   return (
@@ -53,8 +53,6 @@ function DayHead({ dayLabel, timezone, compact = false, children }) {
     </header>
   );
 }
-
-const HEARTBEAT_MS = 60_000;
 
 function clock(totalSeconds) {
   const s = Math.max(0, Math.floor(totalSeconds));
@@ -273,35 +271,14 @@ export default function MyDay(props) {
     return subscribeClockTick((now) => setElapsed(Math.floor((now - from) / 1000)));
   }, [running?.kind, running?.startedAt]);
 
-  // The heartbeat. Fires regardless of tab visibility — switching tabs or
-  // windows must never look like idle time. Only the machine itself going to
-  // sleep or shutting down actually stops a JS timer from firing, which is
-  // the one thing that should turn a running timer into discarded idle time.
-  // Chrome also kills setInterval after the close-tab dialog is cancelled, so
-  // we start a fresh timer when the person stays.
+  // Heartbeat runs in clock.worker.js (not the main thread) so background tabs
+  // are throttled less. Only sleep/shutdown stops the worker entirely.
   useEffect(() => {
     if (!running) return undefined;
-    let id;
-    const beat = () => {
-      fetch('/api/day/heartbeat', { method: 'POST', keepalive: true })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data && data.running === false) router.refresh();
-        })
-        .catch(() => {});
-    };
-    const start = () => {
-      clearInterval(id);
-      beat();
-      id = setInterval(beat, HEARTBEAT_MS);
-    };
-    start();
-    window.addEventListener(CLOCK_STAY_EVENT, start);
-    return () => {
-      clearInterval(id);
-      window.removeEventListener(CLOCK_STAY_EVENT, start);
-    };
-  }, [running?.kind, running?.startedAt]);
+    return subscribeHeartbeat((result) => {
+      if (result.running === false) router.refresh();
+    });
+  }, [running?.kind, running?.startedAt, router]);
 
   // priorWork is only earlier-day abutting work (a midnight split). Same-day
   // closed work is already in totals.work.
