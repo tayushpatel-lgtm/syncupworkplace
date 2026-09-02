@@ -1498,6 +1498,39 @@ a {
   vertical-align: 1px;
 }
 
+.clock-stopped-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  background: #fff8e6;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px #e8c96a66, 0px 2px 2px #0000000a;
+  margin: 0 0 22px;
+  color: #6b4f00;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.page-head + .clock-stopped-notice,
+.keep-tab-notice + .clock-stopped-notice {
+  margin-top: -8px;
+}
+
+.clock-stopped-notice svg {
+  flex: none;
+  margin-top: 2px;
+  color: #b8860b;
+}
+
+.clock-stopped-notice p {
+  margin: 0;
+}
+
+.heartbeat-age.stale {
+  color: var(--amber, #b8860b);
+}
+
 /* ---------------------------------------------------------------- Misc */
 
 .row {

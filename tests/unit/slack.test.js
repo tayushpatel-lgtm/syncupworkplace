@@ -80,10 +80,13 @@ describe('Slack bot message builders', () => {
     expect(dm.blocks[0].text.text).toContain('15 minutes');
   });
 
-  it('reports the idle cut-off and hours worked in a checked-out-for-inactivity DM', () => {
-    const dm = checkedOutInactiveDm(125, 30);
+  it('reports the idle cut-off and hours worked in a clock-stopped-for-inactivity DM', () => {
+    const dm = checkedOutInactiveDm(125, 30, 'https://app.example.com/');
+    expect(dm.text).toContain('clock stopped');
     expect(dm.blocks[0].text.text).toContain('30 minutes');
     expect(dm.blocks[0].text.text).toContain('2.1h');
+    expect(dm.blocks[0].text.text).toContain('still checked in');
+    expect(dm.blocks[0].text.text).toContain('https://app.example.com/');
   });
 
   it('reports the alert threshold in a forgotten-break DM', () => {

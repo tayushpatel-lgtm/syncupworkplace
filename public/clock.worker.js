@@ -8,7 +8,11 @@ function postTick() {
 
 async function beat() {
   try {
-    const res = await fetch('/api/day/heartbeat', { method: 'POST', keepalive: true });
+    const res = await fetch('/api/day/heartbeat', {
+      method: 'POST',
+      keepalive: true,
+      credentials: 'include',
+    });
     const data = await res.json().catch(() => ({}));
     self.postMessage({
       type: 'heartbeat',
@@ -60,6 +64,10 @@ self.onmessage = function (event) {
   const data = event.data || {};
   if (data.type === 'stop') {
     stopAll();
+    return;
+  }
+  if (data.type === 'ping-heartbeat') {
+    beat();
     return;
   }
   if (data.type === 'configure') {

@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useRouter } from '../lib/useRouter';
 import { NAV_PROGRESS_START, startNavProgress } from '../lib/navProgress';
+import { isInternalPath } from './AppLink';
 
 // Not every trigger changes the URL (router.refresh() doesn't), so this is
 // the backstop that guarantees the bar never sticks on.
@@ -12,6 +14,7 @@ const SAFETY_MS = 1500;
 export default function NavProgress() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [active, setActive] = useState(false);
   const timeoutRef = useRef(null);
   const urlKeyRef = useRef(`${pathname}?${searchParams.toString()}`);
@@ -37,7 +40,8 @@ export default function NavProgress() {
   }, []);
 
   // Catches sidebar/tab <Link> clicks directly, without every page needing
-  // to call startNavProgress itself.
+  // to call startNavProgress itself. Plain <a href="/…"> tags are upgraded
+  // to client-side navigation so the shell (heartbeat, clock) stays mounted.
   useEffect(() => {
     function onClick(e) {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -45,14 +49,18 @@ export default function NavProgress() {
       if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return;
       const href = anchor.getAttribute('href');
       if (!href || href.startsWith('#') || href.startsWith('mailto:') || /^https?:\/\//i.test(href)) return;
+      if (!isInternalPath(href) || href.startsWith('/api/')) return;
 
       const dest = new URL(href, window.location.href);
       if (dest.pathname === window.location.pathname && dest.search === window.location.search) return;
+
+      e.preventDefault();
       startNavProgress();
+      router.push(`${dest.pathname}${dest.search}${dest.hash}`);
     }
     document.addEventListener('click', onClick);
     return () => document.removeEventListener('click', onClick);
-  }, []);
+  }, [router]);
 
   return <div className={`nav-progress${active ? ' on' : ''}`} aria-hidden="true" />;
 }
