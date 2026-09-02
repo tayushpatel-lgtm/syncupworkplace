@@ -1,9 +1,9 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useRouter } from '../lib/useRouter';
+import { useCallback, useContext, createContext, useEffect, useState } from 'react';
+import { useRouter as useNextRouter } from 'next/navigation';
 import { pingHeartbeatNow, subscribeHeartbeat } from '../lib/clockTick';
-import { SESSION_WAKE_EVENT, dispatchSessionStopped } from '../lib/sessionPulse';
+import { dispatchSessionStopped } from '../lib/sessionPulse';
 
 const SessionPulseContext = createContext({
   lastBeatAt: null,
@@ -25,7 +25,7 @@ export function formatBeatAge(sec) {
 
 /** Keeps the session heartbeat alive on every signed-in page (not just My day). */
 export default function SessionPulse({ running, children }) {
-  const router = useRouter();
+  const router = useNextRouter();
   const [lastBeatAt, setLastBeatAt] = useState(null);
   const [clockStopped, setClockStopped] = useState(false);
   const [, setAgeTick] = useState(0);
@@ -41,19 +41,15 @@ export default function SessionPulse({ running, children }) {
     pingHeartbeatNow();
     return subscribeHeartbeat((result) => {
       if (result.ok !== false) setLastBeatAt(Date.now());
-      if (result.running === false) {
-        setClockStopped(true);
-        dispatchSessionStopped();
+      if (result.reconciled || result.running === false) {
+        if (result.running === false) {
+          setClockStopped(true);
+          dispatchSessionStopped();
+        }
+        // Silent refresh — no top progress bar (background sync, not navigation).
         router.refresh();
       }
     });
-  }, [running?.kind, running?.startedAt, router]);
-
-  useEffect(() => {
-    if (!running) return undefined;
-    const onWake = () => router.refresh();
-    window.addEventListener(SESSION_WAKE_EVENT, onWake);
-    return () => window.removeEventListener(SESSION_WAKE_EVENT, onWake);
   }, [running?.kind, running?.startedAt, router]);
 
   useEffect(() => {
