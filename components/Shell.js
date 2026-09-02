@@ -3,6 +3,7 @@ import { isAdmin } from '../lib/auth';
 import { dayTotals } from '../lib/day';
 import { dayKey } from '../lib/dates';
 import Nav from './Nav';
+import SessionPulse from './SessionPulse';
 import UnloadGuard from './UnloadGuard';
 import WorkTitle from './WorkTitle';
 
@@ -18,18 +19,20 @@ export default async function Shell({ user, children }) {
     : null;
 
   return (
-    <div className="app-shell">
-      <UnloadGuard running={!!running} />
-      <WorkTitle
-        workMinutes={
-          totals.work +
-          (totals.priorWork || 0) +
-          (totals.running?.kind === 'WORK' ? totals.liveWork || 0 : 0)
-        }
-        running={running}
-      />
-      <Nav user={user} pendingLeave={pendingLeave} />
-      <main className="main">{children}</main>
-    </div>
+    <SessionPulse running={running}>
+      <div className="app-shell">
+        <UnloadGuard running={!!running} />
+        <WorkTitle
+          workMinutes={
+            totals.work +
+            (totals.priorWork || 0) +
+            (totals.running?.kind === 'WORK' ? totals.liveWork || 0 : 0)
+          }
+          running={running}
+        />
+        <Nav user={user} pendingLeave={pendingLeave} />
+        <main className="main">{children}</main>
+      </div>
+    </SessionPulse>
   );
 }

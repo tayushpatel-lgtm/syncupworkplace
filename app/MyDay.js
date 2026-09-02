@@ -7,17 +7,29 @@ import { Icon } from '../components/Icons';
 import LiveClock from '../components/LiveClock';
 import { Card, Empty, Modal } from '../components/ui';
 import { setUnloadGuardArmed } from '../components/UnloadGuard';
-import { CLOCK_STAY_EVENT, subscribeClockTick } from '../lib/clockTick';
+import { useSessionPulse, formatBeatAge } from '../components/SessionPulse';
+import { subscribeClockTick } from '../lib/clockTick';
 
 function KeepTabOpenNotice() {
   return (
     <div className="keep-tab-notice" role="note">
       <Info size={16} strokeWidth={1.75} aria-hidden />
       <p>
-        Please don’t close this tab or the browser, time tracking depends on it staying
-        open. For other work, open a new tab or a new window:{' '}
-        <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>N</kbd> on Windows and Linux,{' '}
-        <kbd>⌘</kbd>+<kbd>T</kbd> / <kbd>⌘</kbd>+<kbd>N</kbd> on Mac.
+        Keep Syncup open somewhere in this browser while you&apos;re working. Heartbeats run on
+        any page in the app — you can use other tabs freely. Closing every Syncup tab stops the
+        clock.
+      </p>
+    </div>
+  );
+}
+
+function ClockStoppedNotice() {
+  return (
+    <div className="clock-stopped-notice" role="status">
+      <Info size={16} strokeWidth={1.75} aria-hidden />
+      <p>
+        Your work clock stopped after inactivity. You&apos;re still checked in — tap{' '}
+        <b>Resume work</b> below to keep counting.
       </p>
     </div>
   );
@@ -53,8 +65,6 @@ function DayHead({ dayLabel, timezone, compact = false, children }) {
     </header>
   );
 }
-
-const HEARTBEAT_MS = 60_000;
 
 function clock(totalSeconds) {
   const s = Math.max(0, Math.floor(totalSeconds));
@@ -248,11 +258,11 @@ export default function MyDay(props) {
   } = props;
 
   const router = useRouter();
+  const { lastBeatAt, lastBeatAgeSec, clearClockStopped } = useSessionPulse();
   const [busy, setBusy] = useState('');
   const [draft, setDraft] = useState('');
   const [summary, setSummary] = useState(report?.summary || '');
   const [error, setError] = useState('');
-  const [elapsed, setElapsed] = useState(0);
   const addRef = useRef(null);
 
   const [checkInItems, setCheckInItems] = useState(null); // null = popup closed
@@ -265,59 +275,29 @@ export default function MyDay(props) {
   const [checkOutError, setCheckOutError] = useState('');
   const [checkOutBusy, setCheckOutBusy] = useState(false);
 
-  // The live clock. It starts from what the server counted and ticks on from there,
-  // so the first paint matches the server exactly and never flashes a wrong number.
+  const [tickNow, setTickNow] = useState(() => Date.now());
+
+  // Live clock anchored to session start so tab wake resyncs correctly.
   useEffect(() => {
     if (!running) return undefined;
-    const from = Date.now();
-    return subscribeClockTick((now) => setElapsed(Math.floor((now - from) / 1000)));
+    return subscribeClockTick((now) => setTickNow(now));
   }, [running?.kind, running?.startedAt]);
 
-  // The heartbeat. Fires regardless of tab visibility — switching tabs or
-  // windows must never look like idle time. Only the machine itself going to
-  // sleep or shutting down actually stops a JS timer from firing, which is
-  // the one thing that should turn a running timer into discarded idle time.
-  // Chrome also kills setInterval after the close-tab dialog is cancelled, so
-  // we start a fresh timer when the person stays.
-  useEffect(() => {
-    if (!running) return undefined;
-    let id;
-    const beat = () => {
-      fetch('/api/day/heartbeat', { method: 'POST', keepalive: true })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data && data.running === false) router.refresh();
-        })
-        .catch(() => {});
-    };
-    const start = () => {
-      clearInterval(id);
-      beat();
-      id = setInterval(beat, HEARTBEAT_MS);
-    };
-    start();
-    window.addEventListener(CLOCK_STAY_EVENT, start);
-    return () => {
-      clearInterval(id);
-      window.removeEventListener(CLOCK_STAY_EVENT, start);
-    };
-  }, [running?.kind, running?.startedAt]);
+  const sessionElapsedSec = running
+    ? Math.max(0, Math.floor((tickNow - new Date(running.startedAt).getTime()) / 1000))
+    : 0;
 
   // priorWork is only earlier-day abutting work (a midnight split). Same-day
   // closed work is already in totals.work.
   const workSeconds =
-    (totals.work +
-      (totals.priorWork || 0) +
-      (running?.kind === 'WORK' ? totals.liveWork || 0 : 0)) *
-      60 +
-    (running?.kind === 'WORK' ? elapsed : 0);
-  const breakSeconds =
-    (totals.break + (running?.kind === 'BREAK' ? totals.liveBreak || 0 : 0)) * 60 +
-    (running?.kind === 'BREAK' ? elapsed : 0);
+    (totals.work + (totals.priorWork || 0)) * 60 +
+    (running?.kind === 'WORK' ? sessionElapsedSec : 0);
+  const breakSeconds = totals.break * 60 + (running?.kind === 'BREAK' ? sessionElapsedSec : 0);
   const waitingCopy = openTasksCopy(openTaskPriorities);
   const lateByCopy = formatLateBy(lateByMinutes);
 
   const donePoints = plan.filter((p) => p.done).length;
+  const showClockStopped = checkedIn && !checkedOut && !running;
   const progress = plan.length ? Math.round((donePoints / plan.length) * 100) : 0;
 
   async function call(url, body, tag) {
@@ -335,9 +315,9 @@ export default function MyDay(props) {
       return false;
     }
     if (!data.skipped) {
-      setElapsed(0);
       if (url === '/api/day/session' && body?.kind && body.kind !== 'STOP') {
         setUnloadGuardArmed(true);
+        if (body.kind === 'WORK') clearClockStopped();
       }
     }
     router.refresh();
@@ -572,6 +552,7 @@ export default function MyDay(props) {
         {checkedOut && <span className="chip green">day closed</span>}
       </DayHead>
       <KeepTabOpenNotice />
+      {showClockStopped && <ClockStoppedNotice />}
 
       <Card>
         <div className="timer">
@@ -625,10 +606,18 @@ export default function MyDay(props) {
               ? 'The day is closed. Reopen it by starting work again.'
               : running
                 ? running.kind === 'WORK'
-                  ? 'Counting. Closing this tab or the browser will ask you to stay.'
-                  : 'On a break — nothing is being counted.'
-                : 'The clock is stopped.'}
+                  ? 'Counting work time. You can browse other pages in Syncup freely.'
+                  : 'On a break — work time is not counting.'
+                : 'Clock paused. Resume work to keep counting — you\u2019re still checked in.'}
           </span>
+          {running && lastBeatAt && (
+            <span
+              className={`muted heartbeat-age${lastBeatAgeSec > 120 ? ' stale' : ''}`}
+              style={{ fontSize: 12.5 }}
+            >
+              Last sync {formatBeatAge(lastBeatAgeSec)}
+            </span>
+          )}
         </div>
         {error && <p className="error-line">{error}</p>}
       </Card>

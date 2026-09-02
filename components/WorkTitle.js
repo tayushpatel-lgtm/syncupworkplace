@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { CLOCK_STAY_EVENT, resumeClockTicks, subscribeClockTick } from '../lib/clockTick';
+import { subscribeClockTick } from '../lib/clockTick';
 
 const APP_TITLE = 'Syncup Workspace';
 
@@ -32,40 +32,9 @@ export default function WorkTitle({ workMinutes = 0, running = null }) {
     }
 
     const from = Date.now();
-    let id;
-    let lastWrite = 0;
-
-    const tick = () => {
-      lastWrite = Date.now();
-      writeTitle(workMinutes, Math.floor((Date.now() - from) / 1000), running);
-    };
-
-    const arm = () => {
-      clearInterval(id);
-      tick();
-      id = setInterval(tick, 1000);
-    };
-
-    const armIfStalled = () => {
-      if (Date.now() - lastWrite > 1500) {
-        arm();
-        resumeClockTicks();
-      }
-    };
-
-    arm();
-    const unsub = subscribeClockTick(tick);
-    window.addEventListener(CLOCK_STAY_EVENT, arm);
-    window.addEventListener('focus', armIfStalled, true);
-    window.addEventListener('mousemove', armIfStalled, true);
-
-    return () => {
-      clearInterval(id);
-      unsub();
-      window.removeEventListener(CLOCK_STAY_EVENT, arm);
-      window.removeEventListener('focus', armIfStalled, true);
-      window.removeEventListener('mousemove', armIfStalled, true);
-    };
+    return subscribeClockTick((now) => {
+      writeTitle(workMinutes, Math.floor((now - from) / 1000), running);
+    });
   }, [workMinutes, running?.kind, running?.startedAt]);
 
   useEffect(

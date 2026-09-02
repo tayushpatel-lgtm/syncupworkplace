@@ -261,9 +261,10 @@ export default function SettingsForm({
             onChange={(e) => set({ idleAfterMinutes: Number(e.target.value) })}
           />
           <span className="muted" style={{ fontSize: 13.5 }}>
-            Minutes of silence from a running timer before the stretch stops counting as work.
-            Frozen onto each session when it starts, so changing this mid-day does not rewrite
-            already-elapsed silence.
+            Minutes without a heartbeat before the running work timer stops counting.
+            Does not check you out — you stay checked in until End my day. A Slack DM is
+            sent when this happens. Frozen onto each session when it starts, so changing
+            this mid-day does not rewrite already-elapsed silence.
           </span>
         </div>
 
@@ -817,8 +818,8 @@ export default function SettingsForm({
               checked={form.slackDmOnInactive}
               onChange={(v) => set({ slackDmOnInactive: v })}
               disabled={!form.slackBotEnabled || !form.slackDmEnabled}
-              title="Checked out for inactivity"
-              detail={'"You were checked out automatically" — their running session went quiet past the idle cut-off (device asleep or off, not just a tab or window switch).'}
+              title="Clock stopped for inactivity"
+              detail={'"Your work clock stopped" — their running session went quiet past the idle cut-off. They stay checked in; the DM links to My day to resume work.'}
             />
             <Check
               checked={form.slackDmOnStaleBreak}

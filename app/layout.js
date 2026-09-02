@@ -1,5 +1,7 @@
 import { Inter, Geist_Mono } from 'next/font/google';
 import { Suspense } from 'react';
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import NavProgress from '../components/NavProgress';
 import { Toaster } from '@/components/ui/sonner';
 import './globals.css';
@@ -43,6 +45,8 @@ export default function RootLayout({ children }) {
         </div>
         {children}
         <Toaster />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 import { requireUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import Shell from '../../components/Shell';
+import AppLink from '../../components/AppLink';
 import { PageHead, Card, Empty } from '../../components/ui';
 import { Icon } from '../../components/Icons';
 
@@ -24,7 +25,7 @@ export default async function AppsPage() {
       />
 
       <div className="grid-3" style={{ gap: 18 }}>
-        <a href="/apps/passwords" className="card" style={{ display: 'block' }}>
+        <AppLink href="/apps/passwords" className="card" style={{ display: 'block' }}>
           <div className="row" style={{ gap: 14 }}>
             <span className="glyph" style={{ fontSize: 18 }}>
               <Icon.key width={20} height={20} />
@@ -34,14 +35,13 @@ export default async function AppsPage() {
               <small className="muted" style={{ fontSize: 13 }}>Shared credentials, encrypted</small>
             </div>
           </div>
-        </a>
+        </AppLink>
 
         {apps.map((app) => (
-          <a
+          <AppLink
             key={app.id}
             href={app.url || '#'}
-            target={app.url ? '_blank' : undefined}
-            rel="noreferrer"
+            external={!!app.url && !app.url.startsWith('/')}
             className="card"
             style={{ display: 'block', cursor: app.url ? 'pointer' : 'default' }}
           >
@@ -56,7 +56,7 @@ export default async function AppsPage() {
                 </small>
               </div>
             </div>
-          </a>
+          </AppLink>
         ))}
       </div>
 
