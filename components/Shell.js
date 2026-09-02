@@ -23,11 +23,7 @@ export default async function Shell({ user, children }) {
       <div className="app-shell">
         <UnloadGuard running={!!running} />
         <WorkTitle
-          workMinutes={
-            totals.work +
-            (totals.priorWork || 0) +
-            (totals.running?.kind === 'WORK' ? totals.liveWork || 0 : 0)
-          }
+          workMinutes={totals.work + (totals.priorWork || 0)}
           running={running}
         />
         <Nav user={user} pendingLeave={pendingLeave} />

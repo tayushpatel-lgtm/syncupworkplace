@@ -13,8 +13,9 @@ function formatWorkClock(totalSeconds) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
-function writeTitle(workMinutes, elapsed, running) {
-  const workSeconds = workMinutes * 60 + (running?.kind === 'WORK' ? elapsed : 0);
+function writeTitle(workMinutes, sessionElapsedSec, running) {
+  const workSeconds =
+    workMinutes * 60 + (running?.kind === 'WORK' ? sessionElapsedSec : 0);
   const showClock = workSeconds > 0 || !!running;
   const next = showClock ? `${formatWorkClock(workSeconds)} · ${APP_TITLE}` : APP_TITLE;
   // Chrome sometimes keeps the old tab label after a cancelled close unless
@@ -26,14 +27,15 @@ function writeTitle(workMinutes, elapsed, running) {
 /** Puts recorded work time in the browser tab title (next to the favicon). */
 export default function WorkTitle({ workMinutes = 0, running = null }) {
   useEffect(() => {
-    if (running?.kind !== 'WORK') {
+    if (running?.kind !== 'WORK' || !running.startedAt) {
       writeTitle(workMinutes, 0, running);
       return undefined;
     }
 
-    const from = Date.now();
+    const startedAt = new Date(running.startedAt).getTime();
     return subscribeClockTick((now) => {
-      writeTitle(workMinutes, Math.floor((now - from) / 1000), running);
+      const sessionElapsedSec = Math.max(0, Math.floor((now - startedAt) / 1000));
+      writeTitle(workMinutes, sessionElapsedSec, running);
     });
   }, [workMinutes, running?.kind, running?.startedAt]);
 
