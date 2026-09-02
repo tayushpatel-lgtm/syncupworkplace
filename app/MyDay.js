@@ -15,9 +15,10 @@ function KeepTabOpenNotice() {
     <div className="keep-tab-notice" role="note">
       <Info size={16} strokeWidth={1.75} aria-hidden />
       <p>
-        Keep Syncup open somewhere in this browser while you&apos;re working. Heartbeats run on
-        any page in the app — you can use other tabs freely. Closing every Syncup tab stops the
-        clock.
+        Please don’t close this tab or the browser, time tracking depends on it staying
+        open. For other work, open a new tab or a new window:{' '}
+        <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>N</kbd> on Windows and Linux,{' '}
+        <kbd>⌘</kbd>+<kbd>T</kbd> / <kbd>⌘</kbd>+<kbd>N</kbd> on Mac.
       </p>
     </div>
   );
