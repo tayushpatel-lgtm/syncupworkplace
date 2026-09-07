@@ -39,7 +39,7 @@ describe('page sweep', () => {
   });
 
   it('every admin page 200s for a signed-in admin', async () => {
-    for (const path of ADMIN_PAGES) {
+    for (const path of [...ADMIN_PAGES, `/admin/people/${employee.id}`]) {
       const res = await page(path, { cookie: ceoCookie });
       expect(res.status, `${path} should 200 for an admin`).toBe(200);
     }
@@ -53,14 +53,14 @@ describe('page sweep', () => {
   });
 
   it('admin pages redirect a plain employee away, not error', async () => {
-    for (const path of ADMIN_PAGES) {
+    for (const path of [...ADMIN_PAGES, `/admin/people/${employee.id}`]) {
       const res = await page(path, { cookie: employee.cookie });
       expect(res.status, `${path} should redirect a non-admin`).toBe(307);
     }
   });
 
   it('every page redirects to /login when signed out', async () => {
-    for (const path of [...EMPLOYEE_PAGES, ...ADMIN_PAGES]) {
+    for (const path of [...EMPLOYEE_PAGES, ...ADMIN_PAGES, `/admin/people/${employee.id}`]) {
       const res = await page(path);
       expect(res.status, `${path} should redirect when signed out`).toBe(307);
       expect(res.location, `${path} should redirect to /login`).toContain('/login');

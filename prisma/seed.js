@@ -116,7 +116,7 @@ async function main() {
   });
 
   console.log('People…');
-  const passwordHash = await bcrypt.hash('syncup1234', 10);
+  const passwordHash = await bcrypt.hash('Admin@121', 10);
   const thisMonth = dayKey(0).slice(0, 7);
   const users = [];
   for (const [name, email, role, department, title] of PEOPLE) {

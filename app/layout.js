@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import NavProgress from '../components/NavProgress';
+import Heartbeat from '../components/Heartbeat';
 import './globals.css';
 
 export const metadata = {
@@ -20,6 +21,7 @@ export default function RootLayout({ children }) {
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
+        <Heartbeat />
         <div className="phone-block">
           <div>
             <b>SYNCUP</b>

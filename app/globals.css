@@ -662,6 +662,64 @@ a {
   color: #fff;
 }
 
+.month-picker {
+  position: relative;
+}
+
+.month-picker summary {
+  list-style: none;
+  border-radius: 8px;
+  color: var(--muted);
+  padding: 7px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.month-picker summary::-webkit-details-marker {
+  display: none;
+}
+
+.month-picker summary.on {
+  background: var(--ink);
+  color: #fff;
+}
+
+.month-picker-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 10%);
+}
+
+.month-picker-menu a,
+.month-picker-menu button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.month-picker-menu button {
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.month-picker-menu button:hover,
+.month-picker-menu button.selected {
+  background: var(--hover);
+  color: var(--ink);
+}
+
 /* Pills and status chips. */
 .chip {
   display: inline-flex;

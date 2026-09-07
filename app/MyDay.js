@@ -5,8 +5,6 @@ import { useRouter } from '../lib/useRouter';
 import { Icon } from '../components/Icons';
 import { PageHead, Card, Empty, Modal } from '../components/ui';
 
-const HEARTBEAT_MS = 60_000;
-
 function clock(totalSeconds) {
   const s = Math.max(0, Math.floor(totalSeconds));
   const h = Math.floor(s / 3600);
@@ -186,20 +184,6 @@ export default function MyDay(props) {
     if (!running) return undefined;
     const from = Date.now();
     const id = setInterval(() => setElapsed(Math.floor((Date.now() - from) / 1000)), 1000);
-    return () => clearInterval(id);
-  }, [running?.kind, running?.startedAt]);
-
-  // The heartbeat. Fires regardless of tab visibility — switching tabs or
-  // windows must never look like idle time. Only the machine itself going to
-  // sleep or shutting down actually stops a JS timer from firing, which is
-  // the one thing that should turn a running timer into discarded idle time.
-  useEffect(() => {
-    if (!running) return undefined;
-    const beat = () => {
-      fetch('/api/day/heartbeat', { method: 'POST', keepalive: true }).catch(() => {});
-    };
-    beat();
-    const id = setInterval(beat, HEARTBEAT_MS);
     return () => clearInterval(id);
   }, [running?.kind, running?.startedAt]);
 
@@ -499,7 +483,7 @@ export default function MyDay(props) {
               ? 'The day is closed. Reopen it by starting work again.'
               : running
                 ? running.kind === 'WORK'
-                  ? 'Counting. Close the tab and the clock stops with it.'
+                  ? 'Counting while the app is signed in and your machine is awake.'
                   : 'On a break — nothing is being counted.'
                 : 'The clock is stopped.'}
           </span>

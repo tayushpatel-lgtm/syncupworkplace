@@ -74,6 +74,7 @@ the password `syncup1234`:
 | `deepak@syncup.in` | Employee |
 
 `zoya@syncup.in` is seeded mid-onboarding, so signing in as her shows the gate.
+All seeded accounts use the password `Admin@121`.
 
 ## Tasks
 

@@ -1,22 +1,40 @@
 import Link from 'next/link';
 import { requireAdmin } from '../../../lib/auth';
-import { prisma } from '../../../lib/db';
-import { getSettings, holidayKeySet, presentThresholdMinutes } from '../../../lib/settings';
+import { getSettings, holidayKeySet } from '../../../lib/settings';
+import { getAttendanceOverview } from '../../../lib/attendance';
 import { dayRoll, STATE_LABEL, STATE_TONE } from '../../../lib/roll';
-import { dayKey, rangeKeys, isWorkingDay, formatDuration, formatClock, shiftDay, formatDayLabel, timeKey } from '../../../lib/dates';
+import { dayKey, formatDuration, formatClock, shiftDay, formatDayLabel, timeKey } from '../../../lib/dates';
 import Shell from '../../../components/Shell';
 import { PageHead, Card, Stat, Person, Empty } from '../../../components/ui';
 import { Icon } from '../../../components/Icons';
+import MonthPicker from '../../../components/MonthPicker';
 import AttendanceDayEditor from './AttendanceDayEditor';
 
 export const dynamic = 'force-dynamic';
 
 const RANGES = [
-  ['7', '7d'],
-  ['30', '30d'],
+  ['week', 'This week'],
+  ['month', 'This month'],
   ['60', '60d'],
   ['90', '90d'],
 ];
+
+function monthBounds(month, today) {
+  const start = `${month}-01`;
+  const next = new Date(`${start}T00:00:00.000Z`);
+  next.setUTCMonth(next.getUTCMonth() + 1);
+  next.setUTCDate(0);
+  return { start, end: next.toISOString().slice(0, 10) < today ? next.toISOString().slice(0, 10) : today };
+}
+
+function monthOptions(today) {
+  return Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(`${today.slice(0, 7)}-01T00:00:00.000Z`);
+    date.setUTCMonth(date.getUTCMonth() - index);
+    const value = date.toISOString().slice(0, 7);
+    return [value, date.toLocaleDateString('en-GB', { timeZone: 'UTC', month: 'long', year: 'numeric' })];
+  });
+}
 
 function Tabs({ tab, dateKey, children }) {
   return (
@@ -106,107 +124,20 @@ export default async function AttendancePage({ searchParams }) {
 
   // ---------------------------------------------------------------- Overview
 
-  const days = RANGES.some(([v]) => v === params?.range) ? Number(params.range) : 30;
+  const range = RANGES.some(([value]) => value === params?.range) ? params.range : 'month';
+  const days = range === 'week' ? 7 : range === 'month' ? 30 : Number(range);
+  const months = monthOptions(today);
+  const selectedMonth = months.some(([value]) => value === params?.month) ? params.month : months[0][0];
+  const selectedMonthBounds = monthBounds(selectedMonth, today);
 
   const settings = await getSettings();
-  const fromKey = shiftDay(today, -(days - 1));
-
-  const holidays = await holidayKeySet(fromKey, today);
-  const holidayKeys = new Set(holidays.keys());
-  const workingKeys = rangeKeys(fromKey, today).filter((k) =>
-    isWorkingDay(k, settings.workingDays, holidayKeys),
+  const { fromKey, holidayKeys, workingKeys, rows } = await getAttendanceOverview(
+    days,
+    settings,
+    today,
+    range === 'month' ? selectedMonthBounds.start : undefined,
+    range === 'month' ? selectedMonthBounds.end : undefined,
   );
-
-  const [people, attendance, sessions, leave] = await Promise.all([
-    prisma.user.findMany({
-      where: { active: true },
-      select: { id: true, name: true, department: true, checkInBy: true, minPresentMinutes: true },
-      orderBy: { name: 'asc' },
-    }),
-    prisma.attendance.findMany({
-      where: {
-        date: { gte: new Date(`${fromKey}T00:00:00.000Z`), lte: new Date(`${today}T00:00:00.000Z`) },
-      },
-    }),
-    prisma.workSession.findMany({
-      where: {
-        kind: 'WORK',
-        endedAt: { not: null },
-        date: { gte: new Date(`${fromKey}T00:00:00.000Z`), lte: new Date(`${today}T00:00:00.000Z`) },
-      },
-    }),
-    prisma.leaveRequest.findMany({
-      where: {
-        status: 'APPROVED',
-        startDate: { lte: new Date(`${today}T00:00:00.000Z`) },
-        endDate: { gte: new Date(`${fromKey}T00:00:00.000Z`) },
-      },
-      select: { userId: true, startDate: true, endDate: true },
-    }),
-  ]);
-
-  const usersById = new Map(people.map((p) => [p.id, p]));
-  const minutesBy = new Map();
-  const perPersonDayMinutes = new Map();
-  for (const s of sessions) {
-    const mins = (s.endedAt - s.startedAt) / 60000;
-    minutesBy.set(s.userId, (minutesBy.get(s.userId) || 0) + mins);
-    const key = s.date.toISOString().slice(0, 10);
-    const pairKey = `${s.userId}::${key}`;
-    perPersonDayMinutes.set(pairKey, (perPersonDayMinutes.get(pairKey) || 0) + mins);
-  }
-
-  // Present means checked in AND met that day's minimum-hours threshold, not
-  // just checked in. A day still in progress (today) hasn't earned its verdict.
-  const presentBy = new Map();
-  const shortByCount = new Map();
-  const lateBy = new Map();
-  for (const a of attendance) {
-    if (!a.checkInAt) continue;
-    const key = a.date.toISOString().slice(0, 10);
-    if (key !== today) {
-      const person = usersById.get(a.userId);
-      const worked = perPersonDayMinutes.get(`${a.userId}::${key}`) || 0;
-      const threshold = person ? presentThresholdMinutes(person, settings) : settings.minPresentMinutes;
-      if (worked >= threshold) presentBy.set(a.userId, (presentBy.get(a.userId) || 0) + 1);
-      else shortByCount.set(a.userId, (shortByCount.get(a.userId) || 0) + 1);
-    } else {
-      // Today counts toward present optimistically — it can still be met before the day ends.
-      presentBy.set(a.userId, (presentBy.get(a.userId) || 0) + 1);
-    }
-    if (a.late) lateBy.set(a.userId, (lateBy.get(a.userId) || 0) + 1);
-  }
-
-  // Leave days inside the window come out of the denominator — you can't be
-  // marked absent on a day the company approved you off.
-  const leaveBy = new Map();
-  for (const l of leave) {
-    const start = l.startDate.toISOString().slice(0, 10);
-    const end = l.endDate.toISOString().slice(0, 10);
-    const count = workingKeys.filter((k) => k >= start && k <= end).length;
-    leaveBy.set(l.userId, (leaveBy.get(l.userId) || 0) + count);
-  }
-
-  const rows = people
-    .map((person) => {
-      const onLeave = leaveBy.get(person.id) || 0;
-      const expected = Math.max(0, workingKeys.length - onLeave);
-      const present = presentBy.get(person.id) || 0;
-      const short = shortByCount.get(person.id) || 0;
-      const minutes = Math.round(minutesBy.get(person.id) || 0);
-      return {
-        ...person,
-        expected,
-        present,
-        short,
-        onLeave,
-        late: lateBy.get(person.id) || 0,
-        absent: Math.max(0, expected - present - short),
-        minutes,
-        pct: expected ? Math.round((present / expected) * 100) : 0,
-      };
-    })
-    .sort((a, b) => a.pct - b.pct);
 
   const companyPct = rows.length
     ? Math.round(rows.reduce((sum, r) => sum + r.pct, 0) / rows.length)
@@ -220,9 +151,18 @@ export default async function AttendancePage({ searchParams }) {
       >
         <div className="segmented">
           {RANGES.map(([value, label]) => (
-            <Link key={value} href={`/admin/attendance?range=${value}`}>
-              <button className={Number(value) === days ? 'on' : ''}>{label}</button>
-            </Link>
+            value === 'month' ? (
+              <MonthPicker
+                key={value}
+                hrefBase="/admin/attendance?range=month&month="
+                months={months}
+                selectedMonth={selectedMonth}
+              />
+            ) : (
+              <Link key={value} href={`/admin/attendance?range=${value}`}>
+                <button className={value === range ? 'on' : ''}>{label}</button>
+              </Link>
+            )
           ))}
         </div>
       </PageHead>
@@ -263,7 +203,12 @@ export default async function AttendancePage({ searchParams }) {
                 {rows.map((r) => (
                   <tr key={r.id}>
                     <td>
-                      <Person name={r.name} sub={r.department || '—'} />
+                      <Link
+                        href={`/admin/people/${r.id}?range=${days === 7 ? 'week' : days === 30 ? 'month' : days}${range === 'month' ? `&month=${selectedMonth}` : ''}`}
+                        className="table-person-link"
+                      >
+                        <Person name={r.name} sub={r.department || '—'} />
+                      </Link>
                     </td>
                     <td className="num right">
                       {r.present}
