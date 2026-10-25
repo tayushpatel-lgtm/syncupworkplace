@@ -1,6 +1,6 @@
 import { prisma } from '../../../lib/db';
 import { apiUser } from '../../../lib/auth';
-import { getSettings } from '../../../lib/settings';
+import { getSettings, overCap } from '../../../lib/settings';
 import { openTaskCount, buildPlan } from '../../../lib/day';
 import { dayKey } from '../../../lib/dates';
 import { parseRepeatInput } from '../../../lib/recurrence';
@@ -26,7 +26,7 @@ export async function POST(request) {
   // The cap is per person, not company-wide.
   const settings = await getSettings();
   const open = await openTaskCount(assigneeId);
-  if (open >= settings.assignmentCap) {
+  if (overCap(open, settings)) {
     return Response.json(
       {
         error: `${assignee.name} is holding ${open} open tasks, and the cap is ${settings.assignmentCap}. Something has to close first.`,

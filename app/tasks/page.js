@@ -1,6 +1,6 @@
 import { requireUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
-import { getSettings } from '../../lib/settings';
+import { getSettings, capLabel } from '../../lib/settings';
 import { serialiseTask } from '../../lib/serialise';
 import { dayKey } from '../../lib/dates';
 import Shell from '../../components/Shell';
@@ -37,7 +37,7 @@ export default async function MyTasksPage() {
     <Shell user={user}>
       <PageHead
         title="My tasks"
-        subtitle={`${open} open of ${tasks.length} · the cap is ${settings.assignmentCap} open tasks each`}
+        subtitle={`${open} open of ${tasks.length} · ${capLabel(settings)}`}
       >
         <AssignTaskButton people={people} currentUserId={user.id} />
       </PageHead>

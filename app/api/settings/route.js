@@ -12,8 +12,8 @@ export async function POST(request) {
 
   if (body.assignmentCap !== undefined) {
     const cap = Number(body.assignmentCap);
-    if (!Number.isInteger(cap) || cap < 1 || cap > 200) {
-      return Response.json({ error: 'The cap has to be between 1 and 200.' }, { status: 400 });
+    if (!Number.isInteger(cap) || cap < 0 || cap > 1000) {
+      return Response.json({ error: 'The cap has to be between 0 (no cap) and 1000.' }, { status: 400 });
     }
     data.assignmentCap = cap;
   }

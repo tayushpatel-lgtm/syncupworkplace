@@ -355,7 +355,7 @@ export default function PeopleManager({
                   <div className="row end" style={{ gap: 8 }}>
                     {!p.active && <span className="chip">inactive</span>}
                     {p.mustChangePassword && <span className="chip amber">new password due</span>}
-                    <span className={`chip ${p.openTasks >= assignmentCap ? 'red' : ''}`}>
+                    <span className={`chip ${assignmentCap > 0 && p.openTasks >= assignmentCap ? 'red' : ''}`}>
                       {p.openTasks}
                     </span>
                   </div>
