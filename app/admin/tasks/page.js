@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireAdmin } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
-import { getSettings } from '../../../lib/settings';
+import { getSettings, overCap, capLabel } from '../../../lib/settings';
 import { serialiseTask } from '../../../lib/serialise';
 import { dayKey } from '../../../lib/dates';
 import Shell from '../../../components/Shell';
@@ -45,13 +45,13 @@ export default async function AdminTasksPage({ searchParams }) {
   const today = dayKey();
   const open = tasks.filter((t) => t.status === 'PENDING' || t.status === 'PROGRESS');
   const overdue = open.filter((t) => t.dueDate && t.dueDate.toISOString().slice(0, 10) < today);
-  const atCap = openCounts.filter((c) => c._count._all >= settings.assignmentCap).length;
+  const atCap = openCounts.filter((c) => overCap(c._count._all, settings)).length;
 
   return (
     <Shell user={user}>
       <PageHead
         title="Tasks"
-        subtitle={`${open.length} open across the company · the cap is ${settings.assignmentCap} each`}
+        subtitle={`${open.length} open across the company · ${capLabel(settings)}`}
       >
         <ResetTasksButton count={totalTaskCount} isCeo={user.role === 'CEO'} />
         <AssignTaskButton people={people} currentUserId={user.id} />

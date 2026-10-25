@@ -1,6 +1,6 @@
 import { requireAdmin } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
-import { getSettings } from '../../../lib/settings';
+import { getSettings, capLabel } from '../../../lib/settings';
 import Shell from '../../../components/Shell';
 import { PageHead } from '../../../components/ui';
 import PeopleManager from './PeopleManager';
@@ -41,7 +41,7 @@ export default async function PeoplePage() {
     <Shell user={user}>
       <PageHead
         title="People"
-        subtitle={`${people.filter((p) => p.active).length} active · the cap is ${settings.assignmentCap} open tasks each`}
+        subtitle={`${people.filter((p) => p.active).length} active · ${capLabel(settings)}`}
       />
       <PeopleManager
         people={people.map((p) => ({

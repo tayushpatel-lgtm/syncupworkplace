@@ -152,21 +152,21 @@ export default function SettingsForm({
         <Card
           glyph="list"
           title="Assignment cap"
-          description="The most unfinished tasks one person can be holding before they stop being assignable. Counted per person, not company-wide — twenty tasks across ten people is a normal week, twenty on one person is not."
+          description="The most unfinished tasks one person can be holding before they stop being assignable. Counted per person, not company-wide. Set it to 0 for no cap at all."
         >
           <label className="field-label">OPEN TASKS EACH</label>
           <div className="row">
             <input
               className="input"
               type="number"
-              min={1}
-              max={200}
+              min={0}
+              max={1000}
               style={{ width: 160 }}
               value={form.assignmentCap}
               onChange={(e) => set({ assignmentCap: Number(e.target.value) })}
             />
             <span className="muted" style={{ fontSize: 13.5 }}>
-              Blocked at {form.assignmentCap}. Completed tasks stop counting immediately.
+              {form.assignmentCap > 0 ? `Blocked at ${form.assignmentCap}. Completed tasks stop counting immediately.` : 'No cap — anyone can hold any number of open tasks.'}
             </span>
           </div>
         </Card>

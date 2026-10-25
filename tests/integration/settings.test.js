@@ -26,9 +26,11 @@ describe('settings validation', () => {
     });
   });
 
-  it('rejects an assignment cap of zero', async () => {
-    const res = await api('/api/settings', { method: 'POST', cookie: ceoCookie, body: { assignmentCap: 0 } });
+  it('accepts an assignment cap of zero (no cap) but not a negative one', async () => {
+    const res = await api('/api/settings', { method: 'POST', cookie: ceoCookie, body: { assignmentCap: -1 } });
     expect(res.status).toBe(400);
+    const ok = await api('/api/settings', { method: 'POST', cookie: ceoCookie, body: { assignmentCap: 0 } });
+    expect(ok.status).toBe(200);
   });
 
   it('rejects an empty working week', async () => {
