@@ -589,6 +589,9 @@ export default function SettingsForm({
             <input
               className="input"
               type="password"
+              autoComplete="new-password"
+              data-1p-ignore
+              data-lpignore="true"
               placeholder={webhookSet ? '••••••••• — saved' : 'https://hooks.slack.com/services/…'}
               value={webhook}
               onChange={(e) => setWebhook(e.target.value)}
@@ -699,6 +702,9 @@ export default function SettingsForm({
             <input
               className="input"
               type="password"
+              autoComplete="new-password"
+              data-1p-ignore
+              data-lpignore="true"
               placeholder={botTokenSet ? '••••••••• — saved' : 'xoxb-…'}
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
@@ -945,6 +951,9 @@ export default function SettingsForm({
               className="input"
               rows={3}
               style={{ fontFamily: 'monospace', fontSize: 12 }}
+              autoComplete="new-password"
+              data-1p-ignore
+              data-lpignore="true"
               placeholder={sheetsKeySet ? '••••••••• — saved' : '-----BEGIN PRIVATE KEY-----…'}
               value={sheetsKey}
               onChange={(e) => setSheetsKey(e.target.value)}
