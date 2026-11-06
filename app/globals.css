@@ -1900,3 +1900,230 @@ a {
   width: 12px;
   height: 12px;
 }
+/* ---------------------------------------------------------------- War room */
+
+/* Right rail: a third column on wide screens, a floating card below that. */
+@media (min-width: 1360px) {
+  .app-shell {
+    grid-template-columns: 260px minmax(0, 1fr) 236px;
+  }
+}
+
+.war-rail {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  width: 216px;
+}
+
+@media (min-width: 1360px) {
+  .war-rail {
+    position: sticky;
+    top: 0;
+    right: auto;
+    bottom: auto;
+    width: auto;
+    height: 100vh;
+    padding: 24px 18px 24px 0;
+  }
+}
+
+.war-rail-card {
+  background: var(--ink);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 16px 16px 14px;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease;
+}
+
+.war-rail-card:hover {
+  transform: translateY(-1px);
+}
+
+.war-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.war-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: war-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes war-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 67, 67, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(224, 67, 67, 0); }
+}
+
+.war-targets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.war-targets-sm {
+  margin: 12px 0 4px;
+}
+
+.war-target b {
+  display: block;
+  font-family: var(--mono);
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.war-target span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.war-targets-sm .war-target b {
+  font-size: 24px;
+}
+
+.war-by {
+  font-size: 12px;
+  opacity: 0.7;
+  margin: 2px 0 10px;
+}
+
+.war-count {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.war-unit {
+  text-align: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 7px 0 5px;
+}
+
+.war-unit b {
+  display: block;
+  font-family: var(--mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+}
+
+.war-unit span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+
+/* Morning popup */
+
+.war-overlay {
+  z-index: 80;
+  background: rgba(10, 10, 10, 0.6);
+}
+
+.war-modal {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 20px;
+  padding: 34px 36px 30px;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  animation: war-in 0.25s ease-out;
+}
+
+@keyframes war-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.war-modal .war-kicker {
+  justify-content: center;
+}
+
+.war-modal h2 {
+  margin: 14px 0 22px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.war-targets-lg {
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.war-targets-lg .war-target {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  padding: 18px 10px 14px;
+}
+
+.war-targets-lg .war-target b {
+  font-size: 44px;
+}
+
+.war-targets-lg .war-target span {
+  font-size: 14px;
+}
+
+.war-modal .war-by {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.war-count-lg {
+  gap: 10px;
+}
+
+.war-count-lg .war-unit {
+  padding: 14px 0 10px;
+  border-radius: 12px;
+}
+
+.war-count-lg .war-unit b {
+  font-size: 36px;
+}
+
+.war-count-lg .war-unit span {
+  font-size: 11px;
+}
+
+.war-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.war-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.war-go {
+  margin-top: 24px;
+  width: 100%;
+  background: #fff;
+  border-color: #fff;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.war-go:hover:not(:disabled) {
+  background: #eaeaea;
+}

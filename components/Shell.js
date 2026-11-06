@@ -6,6 +6,7 @@ import Nav from './Nav';
 import SessionPulse from './SessionPulse';
 import UnloadGuard from './UnloadGuard';
 import WorkTitle from './WorkTitle';
+import WarRoom from './WarRoom';
 
 /** The fixed left rail plus the page beside it. Every signed-in screen uses this. */
 export default async function Shell({ user, children }) {
@@ -28,6 +29,7 @@ export default async function Shell({ user, children }) {
         />
         <Nav user={user} pendingLeave={pendingLeave} />
         <main className="main">{children}</main>
+        <WarRoom />
       </div>
     </SessionPulse>
   );
