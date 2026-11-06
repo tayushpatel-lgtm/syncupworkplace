@@ -1,6 +1,7 @@
 import { prisma } from '../lib/db';
 import { isAdmin } from '../lib/auth';
 import Nav from './Nav';
+import WarRoom from './WarRoom';
 
 /** The fixed left rail plus the page beside it. Every signed-in screen uses this. */
 export default async function Shell({ user, children }) {
@@ -12,6 +13,7 @@ export default async function Shell({ user, children }) {
     <div className="app-shell">
       <Nav user={user} pendingLeave={pendingLeave} />
       <main className="main">{children}</main>
+      <WarRoom />
     </div>
   );
 }
